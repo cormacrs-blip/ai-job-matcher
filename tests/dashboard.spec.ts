@@ -308,7 +308,7 @@ test("imports real-job tracker data locally and keeps historical statuses and so
     .getByRole("link", { name: "Explore imported tracker jobs" })
     .click();
   await page
-    .getByLabel("Choose your recovered Align tracker file")
+    .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
       name: "tracker.json",
       mimeType: "application/json",
@@ -361,12 +361,80 @@ test("imports a compressed tracker file without sending its contents to the serv
   });
   await page.goto("/tracker");
   await page
-    .getByLabel("Choose your recovered Align tracker file")
+    .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
       name: "tracker.json.gz",
       mimeType: "application/gzip",
       buffer: gzipSync(JSON.stringify(data)),
     });
   await expect(page.getByRole("status")).toContainText("1 entries");
+  expect(posts).toBe(0);
+});
+
+test("imports an Excel tracker directly without uploading it", async ({
+  page,
+}) => {
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([
+    [
+      "Company",
+      "Job Title",
+      "Location",
+      "Fit Rating",
+      "Tracker Status",
+      "Posting URL",
+      "Notes",
+    ],
+    [
+      "Example",
+      "Analyst",
+      "Vancouver",
+      "Fit",
+      "Applied",
+      "https://example.com/jobs/1",
+      "",
+    ],
+  ]);
+  sheet.G2 = {
+    t: "s",
+    v: "",
+    c: [
+      {
+        a: "Tracker",
+        t:
+          "Discovery copy: " +
+          "Responsibilities: support product work. ".repeat(7) +
+          " Incomplete description.",
+      },
+    ],
+  };
+  XLSX.utils.book_append_sheet(workbook, sheet, "BC");
+  const data = XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  }) as Buffer;
+  let posts = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST") posts++;
+  });
+  await page.goto("/tracker");
+  await page
+    .getByLabel("Choose your tracker spreadsheet or recovered Align file")
+    .setInputFiles({
+      name: "tracker.xlsx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: data,
+    });
+  await expect(page.getByRole("status")).toContainText("1 entries");
+  await expect(page.getByRole("status")).toContainText(
+    "1 with recovered or cached text",
+  );
+  await page.getByRole("button", { name: "View job and sources" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Status: Applied");
+  await expect(page.getByRole("dialog")).toContainText(
+    "Incomplete description.",
+  );
   expect(posts).toBe(0);
 });

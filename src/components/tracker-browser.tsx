@@ -39,6 +39,19 @@ export function TrackerBrowser() {
       return;
     }
     try {
+      if (file.name.toLowerCase().endsWith(".xlsx")) {
+        if (file.size > 10 * 1024 * 1024)
+          throw new Error("The spreadsheet exceeds the 10 MB limit.");
+        const { readTrackerSpreadsheet } =
+          await import("@/lib/tracker-spreadsheet");
+        const data = await readTrackerSpreadsheet(await file.arrayBuffer());
+        if (current !== readerSequence.current) return;
+        setDataset(data);
+        setQuery("");
+        setOnlyText(false);
+        setPage(0);
+        return;
+      }
       let text: string;
       if (file.name.toLowerCase().endsWith(".gz")) {
         const stream = file
@@ -94,20 +107,22 @@ export function TrackerBrowser() {
       </div>
       <section className="panel tracker-upload">
         <label htmlFor="tracker-file">
-          Choose your recovered Align tracker file
+          Choose your tracker spreadsheet or recovered Align file
         </label>
         <input
           id="tracker-file"
           type="file"
-          accept=".json,.gz,application/json,application/gzip"
+          accept=".xlsx,.json,.gz,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json,application/gzip"
           onChange={(event) => {
             void load(event.target.files?.[0]);
             event.target.value = "";
           }}
         />
         <p className="small muted">
-          Select the JSON file prepared from your spreadsheet. Your original
-          spreadsheet is not modified.
+          Select your original .xlsx spreadsheet or a recovered JSON file. The
+          spreadsheet is read in this browser and is not modified. This import
+          includes only text already saved inside the spreadsheet; it does not
+          fetch job websites.
         </p>
         {error && (
           <p className="error" role="alert">
