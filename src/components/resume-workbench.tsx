@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { validateResume } from "@/lib/jobs";
 import {
+  parseProfile,
   evidenceLabels,
   levels,
   type EvidenceKey,
   type Profile,
 } from "@/lib/matching/evaluator";
+import { suggestEvidence } from "@/lib/matching/suggestions";
 export function ResumeWorkbench({
   onEvaluate,
 }: {
@@ -17,6 +19,19 @@ export function ResumeWorkbench({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pastedText, setPastedText] = useState("");
+  const [reviewFocus, setReviewFocus] = useState("Business analysis");
+  const reviewGroups: Record<string, EvidenceKey[]> = {
+    "Business analysis": ["requirements", "process", "uat"],
+    "Product ownership": ["roadmap", "discovery", "backlog"],
+    "Project delivery": ["planning", "stakeholders", "delivery"],
+    "Data engineering": ["sql", "pipelines", "warehouse"],
+    "All responsibilities": Object.keys(evidenceLabels) as EvidenceKey[],
+  };
+  const suggestions = useMemo(
+    () => suggestEvidence(profile?.text || ""),
+    [profile?.text],
+  );
   const input = useRef<HTMLInputElement>(null);
   const requestNumber = useRef(0);
   const activeRequest = useRef<AbortController | null>(null);
@@ -44,6 +59,7 @@ export function ResumeWorkbench({
     activeRequest.current?.abort();
     setBusy(false);
     setFile(null);
+    setPastedText("");
     setProfile(null);
     setError("");
     onEvaluate(null);
@@ -92,6 +108,23 @@ export function ResumeWorkbench({
       evidence: { ...profile.evidence, [key]: { level, quote } },
     });
   }
+  function readPastedText() {
+    if (!pastedText.trim()) {
+      setError("Paste some resume text first.");
+      return;
+    }
+    if (pastedText.length > 100000) {
+      setError("Please keep pasted text under 100,000 characters.");
+      return;
+    }
+    requestNumber.current++;
+    activeRequest.current?.abort();
+    setBusy(false);
+    setFile(null);
+    setError("");
+    onEvaluate(null);
+    setProfile(parseProfile(pastedText));
+  }
   const unsupported =
     profile &&
     Object.values(profile.evidence).some(
@@ -107,19 +140,22 @@ export function ResumeWorkbench({
         Try a fictional resume first. Download, then select it below.
       </p>
       <div className="sample-downloads">
-        {["business-analyst", "data-engineer", "incomplete-profile"].map(
-          (name) => (
-            <div key={name}>
-              <strong>{name.replaceAll("-", " ")}</strong>
-              <a href={`/sample-resumes/${name}.pdf`} download>
-                PDF
-              </a>
-              <a href={`/sample-resumes/${name}.docx`} download>
-                DOCX
-              </a>
-            </div>
-          ),
-        )}
+        {[
+          "ordinary-business-analyst",
+          "ordinary-data-engineer",
+          "business-analyst",
+          "incomplete-profile",
+        ].map((name) => (
+          <div key={name}>
+            <strong>{name.replaceAll("-", " ")}</strong>
+            <a href={`/sample-resumes/${name}.pdf`} download>
+              PDF
+            </a>
+            <a href={`/sample-resumes/${name}.docx`} download>
+              DOCX
+            </a>
+          </div>
+        ))}
       </div>
       <div
         className="upload-zone"
@@ -150,6 +186,29 @@ export function ResumeWorkbench({
           }}
         />
       </div>
+      <details className="paste-resume">
+        <summary>Or paste resume text</summary>
+        <label htmlFor="resume-text">
+          Resume text (processed in this browser)
+        </label>
+        <textarea
+          id="resume-text"
+          value={pastedText}
+          maxLength={100000}
+          onChange={(event) => {
+            setPastedText(event.target.value);
+            setProfile(null);
+            onEvaluate(null);
+            requestNumber.current++;
+            activeRequest.current?.abort();
+            setBusy(false);
+          }}
+          placeholder="Paste the experience and project sections of a resume"
+        />
+        <button className="button secondary" onClick={readPastedText}>
+          Review pasted resume
+        </button>
+      </details>
       {file && (
         <>
           <p className="privacy-note">
@@ -175,18 +234,23 @@ export function ResumeWorkbench({
       {profile && (
         <div className="evidence-review">
           <h3>Review evidence before evaluating</h3>
+          {!file && (
+            <button className="reset-button" onClick={clear}>
+              Clear resume and results
+            </button>
+          )}
           <p className="small muted">
-            The sample files include explicit evidence annotations for this
-            prototype. Ordinary resumes are not semantically assessed:
-            unrecognized evidence stays Unknown. Review the extracted text and
-            supply specific evidence if needed. These are claims, not verified
-            career facts.
+            For each responsibility, review the original text and choose the
+            level of evidence. Suggested passages are located by vocabulary, not
+            AI judgment; selecting a passage leaves its assessment Unknown. Keep
+            scope, ownership and limitations intact. Sample files with evidence
+            annotations are prefilled claims, not independently verified facts.
           </p>
           <details>
             <summary>Extracted resume text</summary>
             <pre>{profile.text}</pre>
           </details>
-          <details>
+          <details open>
             <summary>
               Review or adjust evidence (
               {
@@ -196,9 +260,28 @@ export function ResumeWorkbench({
               }{" "}
               recognized)
             </summary>
-            {(Object.keys(evidenceLabels) as EvidenceKey[]).map((key) => (
+            <label htmlFor="review-focus">Focus your review</label>
+            <select
+              id="review-focus"
+              value={reviewFocus}
+              onChange={(event) => setReviewFocus(event.target.value)}
+            >
+              {Object.keys(reviewGroups).map((group) => (
+                <option key={group}>{group}</option>
+              ))}
+            </select>
+            <p className="evidence-help">
+              Review one role family at a time. Switching families keeps your
+              edits. Unreviewed evidence stays Unknown.
+            </p>
+            {reviewGroups[reviewFocus].map((key) => (
               <div className="evidence-field" key={key}>
                 <label htmlFor={`evidence-${key}`}>{evidenceLabels[key]}</label>
+                <p className="evidence-help">
+                  Demonstrated: comparable work you owned or performed.
+                  Adjacent: explain the transfer. Limited: preserve the limits.
+                  Unknown: more evidence is needed.
+                </p>
                 <select
                   id={`evidence-${key}`}
                   value={profile.evidence[key].level}
@@ -215,6 +298,28 @@ export function ResumeWorkbench({
                     <option key={level}>{level}</option>
                   ))}
                 </select>
+                {suggestions[key].length > 0 && (
+                  <details className="passage-suggestions">
+                    <summary>
+                      Possible passages ({suggestions[key].length})
+                    </summary>
+                    {suggestions[key].map((passage, index) => (
+                      <div className="passage" key={index}>
+                        <small>Preceding context: {passage.context}</small>
+                        <blockquote>{passage.quote}</blockquote>
+                        {passage.caution && (
+                          <p className="passage-caution">{passage.caution}</p>
+                        )}
+                        <button
+                          className="button secondary"
+                          onClick={() => update(key, "Unknown", passage.quote)}
+                        >
+                          Use passage for {evidenceLabels[key]}
+                        </button>
+                      </div>
+                    ))}
+                  </details>
+                )}
                 <label className="sr-only" htmlFor={`quote-${key}`}>
                   Evidence for {evidenceLabels[key]}
                 </label>

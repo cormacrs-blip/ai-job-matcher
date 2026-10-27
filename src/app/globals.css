@@ -1598,3 +1598,70 @@ input::placeholder {
   vertical-align: top;
   min-width: 110px;
 }
+.paste-resume {
+  margin: 20px 0;
+  font-size: 15px;
+}
+.paste-resume summary,
+.passage-suggestions summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.paste-resume label {
+  display: block;
+  margin: 12px 0;
+}
+.paste-resume textarea {
+  width: 100%;
+  min-height: 170px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+  resize: vertical;
+}
+.evidence-help {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #65715d;
+}
+.passage {
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  padding: 12px;
+  background: #f5f7f0;
+  border-radius: 6px;
+}
+.passage blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.passage small {
+  display: block;
+  color: #65715d;
+  overflow-wrap: anywhere;
+}
+.passage-caution {
+  font-size: 13px;
+  color: #81532a;
+  margin: 12px 0;
+}
+.passage .button {
+  padding: 9px;
+  font-size: 13px;
+}
+.status-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.status-filter select {
+  border: 1px solid var(--line);
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+}

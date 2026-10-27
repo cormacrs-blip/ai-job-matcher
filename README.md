@@ -18,16 +18,21 @@ npm run build
 npm start
 ```
 
-## Try the working example
+## Try an ordinary resume
 
-1. Open `/dashboard` and download the fictional **business analyst** PDF or DOCX from the resume panel.
-2. Select that downloaded file. Selection alone does not upload or evaluate anything.
-3. Click **Read resume**. The app uploads the file to its own server, extracts text and identifies explicit prototype evidence annotations.
-4. Review the extracted text and evidence; adjust assessments or add specific evidence when needed.
-5. Click **Evaluate sample jobs**. Expect Fit for Digital Business Analyst, Consider for Product Owner and Senior Business Analyst, Investigate for Digital Project Manager (French eligibility unknown), and Weak Fit for Analytics Engineer.
-6. Replace it with the fictional **data engineer** resume and repeat: Analytics Engineer becomes Fit. The incomplete profile produces Investigate rather than invented evidence.
+1. Open `/dashboard` and download **ordinary business analyst**, as PDF or DOCX. It contains conventional experience bullets without special evidence tags. Alternatively, open **Or paste resume text** and paste experience text; that path stays in the browser.
+2. For a file, select it and click **Read resume** to upload it to this app for text extraction.
+3. In **Review or adjust evidence**, choose a role family. Expand **Possible passages**, inspect the original quote and context, and choose a passage. Its assessment remains **Unknown** until you choose a level.
+4. Review Requirements discovery, Process improvement and UAT as Demonstrated for the fictional ordinary business analyst. Keep its qualified claims about roadmap support and basic SQL at their actual scope.
+5. Click **Evaluate sample jobs**. Filter results by category, open role details to inspect the evidence, and download a plain-text evaluation summary.
 
-Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names are never used to choose an assessment. Both PDF and DOCX content is actually extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
+No model independently interprets an ordinary resume. Suggestions locate vocabulary in original passages; they can miss relevant synonyms or surface irrelevant text. User review remains necessary. No passage, filename or skill keyword silently establishes capability.
+
+## Try the controlled examples
+
+The original business analyst and incomplete profile downloads contain explicit prototype evidence annotations. They demonstrate prefilled mappings and regression cases. The annotated business analyst produces Fit for Digital Business Analyst, Consider for Product Owner and Senior Business Analyst, Investigate for Digital Project Manager (French eligibility unknown), and Weak Fit for Analytics Engineer. The annotated data engineer fixture is retained under `public/sample-resumes/` for regression tests. All are fictional.
+
+Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names never choose an assessment. Both PDF and DOCX contents are extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Visible sample salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
 
 ## What the evaluator does—and does not do
 
@@ -43,7 +48,7 @@ Prototype rules, in order:
 - An explicit adjacent transfer produces Consider.
 - Otherwise direct central-work evidence produces Fit; minimum annual CAD base pay above $100,000 changes it to Consider as a competition cue. Exactly $100,000 does not; a Senior title by itself does not change it.
 
-This intentionally limited prototype does **not** model all geography, authorization, credentials, industry preferences, preferred-profile caps, alternative qualifications or nuanced comparisons of scope, depth and authority. The displayed full description supports human review; only the structured criteria drive rules. Missing salary neutrality, other currencies and hourly rates need explicit modeling before adding those fixtures. A later semantic evaluator needs its own evidence extraction, validation and regression evaluation before replacing these rules.
+This intentionally limited prototype does **not** model all geography, authorization, credentials, industry preferences, preferred-profile caps, alternative qualifications or nuanced comparisons of scope, depth and authority. The displayed full description supports human review; only the structured criteria drive rules. Compensation rules now handle unknown salary, pay source, CAD hourly and EUR annual thresholds, and avoid inventing a UK minimum. Those capabilities are tested in the rule layer; the current visible fixtures remain CAD annual. A later semantic evaluator needs its own evidence extraction, validation and regression evaluation before replacing these rules.
 
 ## Document handling
 
@@ -58,8 +63,8 @@ src/app/                       Pages, shared styles, resume extraction API
 src/components/dashboard.tsx   Filters, saved roles, evaluation results and details
 src/components/resume-workbench.tsx  File selection, upload, review and evaluation action
 src/lib/jobs.ts                Typed detailed fictional roles and preference filters
-src/lib/matching/evaluator.ts  Explicit evidence parsing and pure category rules
-public/sample-resumes/         Three fictional resumes, each as PDF and DOCX
+src/lib/matching/              Evidence retrieval, parsing, compensation, reports and category rules
+public/sample-resumes/         Annotated and ordinary fictional PDF/DOCX resumes
 scripts/generate_sample_resumes.py  Reproducible fixture generator
 ```
 
@@ -78,5 +83,7 @@ npm run test:e2e
 Browser tests require a production build and Chromium (`/usr/bin/chromium` by default; override `CHROMIUM_PATH` for your installed browser). Tests cover real PDF/DOCX uploads and text extraction, all four categories, changed outcomes after replacing the resume, missing evidence, file errors, multi-select filters, saved jobs, dialogs and mobile/desktop overflow. Unit tests cover extraction boundaries, explicit/unknown/duplicate evidence, central gaps, competition cues, salary/language gates and preference combinations.
 
 ## Next priorities
+
+See [evaluation design and remaining work](docs/evaluation-design.md) for the source-rule mapping and boundaries.
 
 Calibrate the structured rubric against actual work-agent decisions; build a reviewed semantic extraction adapter rather than keyword scoring; add the unmodeled gates and qualification rules; harden upload processing before public use; then introduce permitted live job sources and persistence. No paid service or public deployment has been configured.

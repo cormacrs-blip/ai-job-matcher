@@ -1,3 +1,4 @@
+import { assessCompensation, type Compensation } from "./compensation";
 export const evidenceLabels = {
   requirements: "Requirements discovery",
   process: "Process improvement",
@@ -28,11 +29,17 @@ export type Profile = {
   text: string;
 };
 export type FitStatus = "Fit" | "Consider" | "Investigate" | "Weak Fit";
-export type RoleCriteria = { central: EvidenceKey[]; requiresFrench?: boolean };
+export type RoleCriteria = {
+  central: EvidenceKey[];
+  requiresFrench?: boolean;
+  compensation?: Compensation;
+  descriptionComplete?: boolean;
+};
 export type Assessment = {
   status: FitStatus;
   reason: string;
   question?: string;
+  compensationNote?: string;
   rows: {
     key: EvidenceKey;
     label: string;
@@ -79,15 +86,33 @@ export function evaluateRole(
     label: evidenceLabels[key],
     ...profile.evidence[key],
   }));
+  const pay = assessCompensation(
+    job.compensation ?? {
+      country: "Canada",
+      currency: "CAD",
+      period: "annual",
+      minimum: job.salaryMin,
+      maximum: job.salaryMax,
+      source: "employer-base",
+    },
+  );
   const result = (
     status: FitStatus,
     reason: string,
     question?: string,
-  ): Assessment => ({ status, reason, question, rows });
-  if (job.salaryMax < 60000)
+  ): Assessment => ({
+    status,
+    reason,
+    question,
+    rows,
+    compensationNote: pay.note ?? undefined,
+  });
+  if (pay.failure) return result("Weak Fit", pay.failure);
+  if (job.descriptionComplete === false)
     return result(
-      "Weak Fit",
-      "Confirmed compensation gate: the stated annual CAD range is below the CAD $60,000 minimum.",
+      "Investigate",
+      "The job description is incomplete; the defining work cannot yet be established.",
+      "Can you obtain the full responsibilities and essential requirements?",
     );
   if (job.requiresFrench && profile.french === "No")
     return result(
@@ -126,7 +151,7 @@ export function evaluateRole(
       "Consider",
       "Relevant transferable evidence exists, but part of the defining work is adjacent rather than directly demonstrated. Verify the bridge in scope and responsibility.",
     );
-  if (job.salaryMin > 100000)
+  if (pay.competition)
     return result(
       "Consider",
       "The defining work has direct evidence. The employer-stated minimum annual CAD base salary above $100,000 triggers the rubric’s competition cue; this is not a missing skill.",

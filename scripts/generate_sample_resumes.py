@@ -42,3 +42,34 @@ for name, person, summary, evidence in [
    c.setFont('Helvetica',10);c.drawString(55,y,line);y-=14
   y-=10
  c.save()
+
+# Ordinary resumes with no special evidence tags or preassigned assessment levels.
+for name, person, entries in [
+ ('ordinary-business-analyst','Alex Morgan',[
+  'Digital Business Analyst | Fictional Retail | 2022-2025',
+  'Led discovery workshops and wrote checkout requirements and acceptance criteria for a retail ordering platform.',
+  'Mapped fulfilment processes with operations and agreed measurable workflow improvements.',
+  'Coordinated UAT with business users and triaged release defects against the agreed acceptance criteria.',
+  'Supported customer interviews and proposed roadmap options; the product manager owned final decisions.',
+  'Prioritized the checkout backlog within agreed product objectives.',
+  'Owned release plans, risk tracking and delivery reporting; aligned operations stakeholders and engineers on scope.',
+  'Used basic SQL SELECT queries. No experience owning production data pipelines or warehouse architecture.',
+  'Education: BA in Business, Fictional College. Languages: English.']),
+ ('ordinary-data-engineer','Sam Chen',[
+  'Analytics Engineer | Fictional Data | 2021-2025',
+  'Owned complex production SQL transformations and performance tuning for subscription analytics.',
+  'Built and monitored data pipelines; handled recovery and data quality incidents.',
+  'Designed warehouse models and quality controls for finance and product reporting.',
+  'Supported business stakeholders in interpreting data; product managers owned the roadmap and discovery.',
+  'Education: BSc in Computing, Fictional College. Languages: English.'])]:
+ paragraphs=[person+' - FICTIONAL SAMPLE RESUME']+entries
+ d=Document();d.add_heading(paragraphs[0],0)
+ for text in paragraphs[1:]:d.add_paragraph(text)
+ d.save(ROOT/(name+'.docx'))
+ c=canvas.Canvas(str(ROOT/(name+'.pdf')));y=800
+ for paragraph in paragraphs:
+  for line in simpleSplit(paragraph,'Helvetica',11,480):
+   if y<55:c.showPage();y=800
+   c.setFont('Helvetica',11);c.drawString(55,y,line);y-=16
+  y-=12
+ c.save()

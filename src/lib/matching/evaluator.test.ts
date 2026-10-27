@@ -54,7 +54,10 @@ describe("explicit evidence extraction and prototype verdicts", () => {
       evaluateRole(jobs[3], parseProfile("French eligibility: No")).status,
     ).toBe("Weak Fit");
     expect(
-      evaluateRole({ ...jobs[0], salaryMax: 59000 }, parseProfile(text)).status,
+      evaluateRole(
+        { ...jobs[0], salaryMin: 59000, salaryMax: 59000 },
+        parseProfile(text),
+      ).status,
     ).toBe("Weak Fit");
   });
   it("does not lower a verdict for the Senior title alone or salary minimum exactly 100000", () => {
@@ -63,4 +66,11 @@ describe("explicit evidence extraction and prototype verdicts", () => {
         .status,
     ).toBe("Fit");
   });
+});
+
+it("withholds a positive verdict when the description is incomplete", () => {
+  expect(
+    evaluateRole({ ...jobs[0], descriptionComplete: false }, parseProfile(text))
+      .status,
+  ).toBe("Investigate");
 });

@@ -19,11 +19,13 @@ import {
 } from "@/lib/jobs";
 import { ResumeWorkbench } from "./resume-workbench";
 import { evaluateRole, type Profile } from "@/lib/matching/evaluator";
+import { createEvaluationReport, nextAction } from "@/lib/matching/report";
 export function Dashboard() {
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState<number[]>([]);
   const [onlySaved, setOnlySaved] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All statuses");
   const [selected, setSelected] = useState<Job | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -32,10 +34,27 @@ export function Dashboard() {
   const results = useMemo(
     () =>
       filterJobs(jobs, preferences).filter(
-        (job) => !onlySaved || saved.includes(job.id),
+        (job) =>
+          (!onlySaved || saved.includes(job.id)) &&
+          (!profile ||
+            statusFilter === "All statuses" ||
+            evaluateRole(job, profile).status === statusFilter),
       ),
-    [preferences, onlySaved, saved],
+    [preferences, onlySaved, saved, profile, statusFilter],
   );
+  function downloadReport() {
+    if (!selected || !profile) return;
+    const url = URL.createObjectURL(
+      new Blob([createEvaluationReport(selected, profile)], {
+        type: "text/plain;charset=utf-8",
+      }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `align-evaluation-${selected.id}.txt`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   const selectedAssessment =
     selected && profile ? evaluateRole(selected, profile) : null;
   return (
@@ -168,6 +187,26 @@ export function Dashboard() {
             </div>
             <span className="sort-label">Sample listing order</span>
           </div>
+          {profile && (
+            <div className="status-filter">
+              <label htmlFor="fit-status">Show category</label>
+              <select
+                id="fit-status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                {[
+                  "All statuses",
+                  "Fit",
+                  "Consider",
+                  "Investigate",
+                  "Weak Fit",
+                ].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="results-caption">
             <span>
               {results.length}{" "}
@@ -272,6 +311,7 @@ export function Dashboard() {
                 onClick={() => {
                   setPreferences(defaultPreferences);
                   setOnlySaved(false);
+                  setStatusFilter("All statuses");
                 }}
               >
                 Show all opportunities
@@ -336,6 +376,14 @@ export function Dashboard() {
             {selectedAssessment && (
               <>
                 <p>{selectedAssessment.reason}</p>
+                {selectedAssessment.compensationNote && (
+                  <p>{selectedAssessment.compensationNote}</p>
+                )}
+                <h3>Next action</h3>
+                <p>{nextAction(selectedAssessment)}</p>
+                <button className="button secondary" onClick={downloadReport}>
+                  Download evaluation summary
+                </button>
                 {selectedAssessment.question && (
                   <p>{selectedAssessment.question}</p>
                 )}

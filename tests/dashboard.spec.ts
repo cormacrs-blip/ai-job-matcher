@@ -155,3 +155,108 @@ test("removing a resume cancels an in-flight read and prevents stale evidence", 
   await expect(page.locator(".status-pending")).toHaveCount(5);
   await expect(page.getByText("Drop your resume here")).toBeVisible();
 });
+
+for (const extension of ["pdf", "docx"])
+  test(`ordinary ${extension} needs reviewed evidence and produces an exportable decision`, async ({
+    page,
+  }) => {
+    await page.goto("/dashboard");
+    await page
+      .getByLabel("Choose resume PDF or DOCX")
+      .setInputFiles(
+        path.resolve(
+          `public/sample-resumes/ordinary-business-analyst.${extension}`,
+        ),
+      );
+    await page
+      .getByRole("button", { name: "Read resume", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Evaluate sample jobs" }),
+    ).toBeVisible({ timeout: 30000 });
+    await page.getByRole("button", { name: "Evaluate sample jobs" }).click();
+    await expect(page.locator(".status-investigate")).toHaveCount(5);
+    for (const [key, label] of [
+      ["requirements", "Requirements discovery"],
+      ["process", "Process improvement"],
+      ["uat", "User acceptance testing"],
+    ]) {
+      const field = page
+        .locator(".evidence-field")
+        .filter({ has: page.locator(`#evidence-${key}`) });
+      await field.getByText(/Possible passages/).click();
+      await field
+        .getByRole("button", { name: `Use passage for ${label}`, exact: true })
+        .first()
+        .click();
+      await expect(page.locator(`#evidence-${key}`)).toHaveValue("Unknown");
+      await page.locator(`#evidence-${key}`).selectOption("Demonstrated");
+    }
+    await page.getByRole("button", { name: "Evaluate sample jobs" }).click();
+    await expect(page.locator(".status-fit")).toHaveCount(1);
+    await page.getByLabel("Show category").selectOption("Fit");
+    await expect(page.locator(".job-card")).toHaveCount(1);
+    await page
+      .getByRole("button", { name: "Explore role", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText(
+      "Led discovery workshops",
+    );
+    const downloaded = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Download evaluation summary" })
+      .click();
+    expect((await downloaded).suggestedFilename()).toBe(
+      "align-evaluation-1.txt",
+    );
+    await page.keyboard.press("Escape");
+    await page.locator("#quote-uat").fill("");
+    await expect(
+      page.getByRole("button", { name: "Evaluate sample jobs" }),
+    ).toBeDisabled();
+    await expect(page.locator(".status-pending")).toHaveCount(5);
+  });
+
+test("pasted resume stays local and quoted limitations remain visible", async ({
+  page,
+}) => {
+  let uploads = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/resume")) uploads++;
+  });
+  await page.goto("/dashboard");
+  await page.getByText("Or paste resume text", { exact: true }).click();
+  await page
+    .getByLabel("Resume text (processed in this browser)")
+    .fill(
+      "Supported roadmap research; the product manager owned final decisions.\n\nUsed basic SQL queries. No production pipeline experience.",
+    );
+  await page.getByRole("button", { name: "Review pasted resume" }).click();
+  await page.getByLabel("Focus your review").selectOption("Product ownership");
+  await page
+    .locator(".evidence-field")
+    .filter({ has: page.locator("#evidence-roadmap") })
+    .getByText(/Possible passages/)
+    .click();
+  await expect(page.locator(".passage-caution")).toContainText(
+    "qualifying language",
+  );
+  await page
+    .getByRole("button", {
+      name: "Use passage for Roadmap ownership",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator("#quote-roadmap")).toHaveValue(
+    "Supported roadmap research; the product manager owned final decisions.",
+  );
+  await expect(page.locator("#evidence-roadmap")).toHaveValue("Unknown");
+  await page.getByRole("button", { name: "Evaluate sample jobs" }).click();
+  await expect(page.locator(".status-investigate")).toHaveCount(5);
+  expect(uploads).toBe(0);
+  await page.getByRole("button", { name: "Clear resume and results" }).click();
+  await expect(page.locator(".status-pending")).toHaveCount(5);
+  await expect(
+    page.getByLabel("Resume text (processed in this browser)"),
+  ).toBeEmpty();
+});
