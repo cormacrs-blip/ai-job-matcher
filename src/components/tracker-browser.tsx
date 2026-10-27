@@ -39,7 +39,29 @@ export function TrackerBrowser() {
       return;
     }
     try {
-      const data = readTrackerDataset(await file.text());
+      let text: string;
+      if (file.name.toLowerCase().endsWith(".gz")) {
+        const stream = file
+          .stream()
+          .pipeThrough(new DecompressionStream("gzip"));
+        const reader = stream.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 50 * 1024 * 1024) {
+            await reader.cancel();
+            throw new Error(
+              "The decompressed tracker file exceeds the 50 MB import limit.",
+            );
+          }
+          chunks.push(value);
+        }
+        text = await new Blob(chunks as BlobPart[]).text();
+      } else text = await file.text();
+      const data = readTrackerDataset(text);
       if (current !== readerSequence.current) return;
       setDataset(data);
       setQuery("");
@@ -77,7 +99,7 @@ export function TrackerBrowser() {
         <input
           id="tracker-file"
           type="file"
-          accept=".json,application/json"
+          accept=".json,.gz,application/json,application/gzip"
           onChange={(event) => {
             void load(event.target.files?.[0]);
             event.target.value = "";

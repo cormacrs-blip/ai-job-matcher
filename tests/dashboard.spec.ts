@@ -334,3 +334,39 @@ test("imports real-job tracker data locally and keeps historical statuses and so
   await page.getByRole("button", { name: "Clear imported data" }).click();
   await expect(page.locator(".tracker-card")).toHaveCount(0);
 });
+
+test("imports a compressed tracker file without sending its contents to the server", async ({
+  page,
+}) => {
+  const { gzipSync } = await import("node:zlib");
+  const data = {
+    format: "align-tracker-v1",
+    generatedAt: "2026-10-27T00:00:00Z",
+    jobs: [
+      {
+        id: "1",
+        title: "Analyst",
+        company: "Example",
+        location: "Canada",
+        url: "",
+        references: [{ sheet: "BC", row: 2 }],
+        fetchStatus: "not_yet_checked",
+        descriptions: [],
+      },
+    ],
+  };
+  let posts = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST") posts++;
+  });
+  await page.goto("/tracker");
+  await page
+    .getByLabel("Choose your recovered Align tracker file")
+    .setInputFiles({
+      name: "tracker.json.gz",
+      mimeType: "application/gzip",
+      buffer: gzipSync(JSON.stringify(data)),
+    });
+  await expect(page.getByRole("status")).toContainText("1 entries");
+  expect(posts).toBe(0);
+});
