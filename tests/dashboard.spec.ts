@@ -102,13 +102,11 @@ test("rejects invalid content and ordinary resume evidence stays unknown", async
   });
   expect(response.status()).toBe(400);
   await page.goto("/dashboard");
-  await page
-    .getByLabel("Choose resume PDF or DOCX")
-    .setInputFiles({
-      name: "bad.exe",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from("invalid"),
-    });
+  await page.getByLabel("Choose resume PDF or DOCX").setInputFiles({
+    name: "bad.exe",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("invalid"),
+  });
   await expect(page.locator(".error")).toContainText("PDF or DOCX");
   await page
     .getByLabel("Choose resume PDF or DOCX")
@@ -121,4 +119,39 @@ test("rejects invalid content and ordinary resume evidence stays unknown", async
   ).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Evaluate sample jobs" }).click();
   await expect(page.locator(".status-investigate")).toHaveCount(5);
+});
+
+test("removing a resume cancels an in-flight read and prevents stale evidence", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/resume", async (route) => {
+    await delayed;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ profile: { text: "stale upload" } }),
+    });
+  });
+  await page.goto("/dashboard");
+  await page
+    .getByLabel("Choose resume PDF or DOCX")
+    .setInputFiles(path.resolve("public/sample-resumes/business-analyst.pdf"));
+  const started = page.waitForRequest("**/api/resume");
+  const cancelled = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url().endsWith("/api/resume"),
+  });
+  await page.getByRole("button", { name: "Read resume", exact: true }).click();
+  await started;
+  await page.getByRole("button", { name: "Remove selected resume" }).click();
+  release();
+  await cancelled;
+  await expect(
+    page.getByRole("button", { name: "Evaluate sample jobs" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".status-pending")).toHaveCount(5);
+  await expect(page.getByText("Drop your resume here")).toBeVisible();
 });

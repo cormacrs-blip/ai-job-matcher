@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { validateResume } from "@/lib/jobs";
 import {
@@ -19,12 +19,21 @@ export function ResumeWorkbench({
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const requestNumber = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      requestNumber.current++;
+      activeRequest.current?.abort();
+    },
+    [],
+  );
   function choose(candidate?: File) {
     if (!candidate) return;
     const problem = validateResume(candidate);
     setError(problem || "");
     if (problem) return;
     requestNumber.current++;
+    activeRequest.current?.abort();
     setBusy(false);
     setFile(candidate);
     setProfile(null);
@@ -32,6 +41,7 @@ export function ResumeWorkbench({
   }
   function clear() {
     requestNumber.current++;
+    activeRequest.current?.abort();
     setBusy(false);
     setFile(null);
     setProfile(null);
@@ -41,6 +51,9 @@ export function ResumeWorkbench({
   async function read() {
     if (!file) return;
     const current = ++requestNumber.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setBusy(true);
     setError("");
     setProfile(null);
@@ -51,6 +64,7 @@ export function ResumeWorkbench({
       const response = await fetch("/api/resume", {
         method: "POST",
         body: form,
+        signal: controller.signal,
       });
       const data = await response.json();
       if (current !== requestNumber.current) return;

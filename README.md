@@ -27,7 +27,7 @@ npm start
 5. Click **Evaluate sample jobs**. Expect Fit for Digital Business Analyst, Consider for Product Owner and Senior Business Analyst, Investigate for Digital Project Manager (French eligibility unknown), and Weak Fit for Analytics Engineer.
 6. Replace it with the fictional **data engineer** resume and repeat: Analytics Engineer becomes Fit. The incomplete profile produces Investigate rather than invented evidence.
 
-Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Download names are never used to choose an assessment. Both PDF and DOCX content is actually extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
+Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names are never used to choose an assessment. Both PDF and DOCX content is actually extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
 
 ## What the evaluator does—and does not do
 
@@ -47,7 +47,7 @@ This intentionally limited prototype does **not** model all geography, authoriza
 
 ## Document handling
 
-PDF and DOCX files up to 10 MB are accepted. The app checks extension and a basic file signature, then extracts plain text using pdf-parse or Mammoth. Corrupt/encrypted documents and PDFs without readable text return errors. OCR is not provided. The application processes files in server memory, does not write uploaded files to disk or a database, does not log resume contents and does not forward them to an external service. Responses use `Cache-Control: no-store`. Browser selection is separate from the explicit upload action. No claim is made about infrastructure-level retention.
+PDF and DOCX files up to 10 MB are accepted. Document parsers load on demand for the selected format, so DOCX reads do not initialize the PDF parser. The app enforces an 11 MB total request limit while reading the actual upload stream (including requests without a size header), then a 10 MB per-file limit. It checks extension and a basic file signature, then extracts plain text using pdf-parse or Mammoth. Corrupt/encrypted documents and PDFs without readable text return errors. OCR is not provided. The application processes files in server memory, does not write uploaded files to disk or a database, does not log resume contents and does not forward them to an external service. Responses use `Cache-Control: no-store`. Browser selection is separate from the explicit upload action. No claim is made about infrastructure-level retention.
 
 Use fictional files in this development prototype. It lacks authentication, rate limiting, malware scanning, robust decompression/resource limits and a production retention/consent policy. Keep the development port private; do not expose this upload endpoint publicly as-is.
 

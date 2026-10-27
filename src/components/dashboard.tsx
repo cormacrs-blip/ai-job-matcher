@@ -36,6 +36,8 @@ export function Dashboard() {
       ),
     [preferences, onlySaved, saved],
   );
+  const selectedAssessment =
+    selected && profile ? evaluateRole(selected, profile) : null;
   return (
     <main className="dashboard shell">
       <div className="dashboard-heading">
@@ -330,16 +332,12 @@ export function Dashboard() {
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <h3>
-              {profile
-                ? evaluateRole(selected, profile).status
-                : "Not evaluated"}
-            </h3>
-            {profile && (
+            <h3>{selectedAssessment?.status || "Not evaluated"}</h3>
+            {selectedAssessment && (
               <>
-                <p>{evaluateRole(selected, profile).reason}</p>
-                {evaluateRole(selected, profile).question && (
-                  <p>{evaluateRole(selected, profile).question}</p>
+                <p>{selectedAssessment.reason}</p>
+                {selectedAssessment.question && (
+                  <p>{selectedAssessment.question}</p>
                 )}
                 <div className="evidence-table-wrap">
                   <table>
@@ -354,7 +352,7 @@ export function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {evaluateRole(selected, profile).rows.map((row) => (
+                      {selectedAssessment.rows.map((row) => (
                         <tr key={row.key}>
                           <td>{row.label}</td>
                           <td>{row.level}</td>

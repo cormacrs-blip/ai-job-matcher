@@ -1,18 +1,10 @@
-import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
+import { readResumeForm, UploadTooLarge } from "@/lib/documents/upload";
 import { validateResume } from "@/lib/jobs";
 import { parseProfile } from "@/lib/matching/evaluator";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
-    // Reject oversized requests before materializing multipart data where length is available.
-    const length = Number(request.headers.get("content-length") || 0);
-    if (length > 11 * 1024 * 1024)
-      return Response.json(
-        { error: "The request exceeds the 10 MB file limit." },
-        { status: 413 },
-      );
-    const form = await request.formData();
+    const form = await readResumeForm(request);
     const file = form.get("resume");
     if (!(file instanceof File))
       return Response.json({ error: "Choose a resume file." }, { status: 400 });
@@ -26,6 +18,7 @@ export async function POST(request: Request) {
           { error: "This file is not a valid PDF." },
           { status: 400 },
         );
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: bytes });
       try {
         text = (await parser.getText()).text;
@@ -38,6 +31,7 @@ export async function POST(request: Request) {
           { error: "This file is not a valid DOCX." },
           { status: 400 },
         );
+      const mammoth = await import("mammoth");
       text = (await mammoth.extractRawText({ buffer: bytes })).value;
     }
     if (!text.trim())
@@ -57,7 +51,12 @@ export async function POST(request: Request) {
       { profile: parseProfile(text) },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof UploadTooLarge)
+      return Response.json(
+        { error: "The request exceeds the 10 MB file limit." },
+        { status: 413 },
+      );
     return Response.json(
       {
         error:
