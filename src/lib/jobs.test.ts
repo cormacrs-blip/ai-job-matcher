@@ -1,27 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { defaultPreferences, filterJobs, jobs, validateResume } from "./jobs";
 describe("sample opportunity filters", () => {
-  it("returns all sample jobs in descending fixed score order", () => {
+  it("returns all sample jobs in their fixture order", () => {
     const result = filterJobs(jobs, defaultPreferences);
     expect(result).toHaveLength(5);
-    expect(result.map((job) => job.score)).toEqual([94, 89, 87, 82, 78]);
+    expect(result.map((job) => job.id)).toEqual([1, 2, 3, 4, 5]);
   });
   it("combines role, location, work arrangement and salary filters", () => {
     expect(
       filterJobs(jobs, {
-        role: " product ",
+        role: " digital business ",
         location: "VANCOUVER",
-        remote: "Remote",
-        salary: 140000,
+        arrangements: ["Remote"],
+        salary: 105000,
       }).map((job) => job.id),
     ).toEqual([1]);
+  });
+  it("allows multiple work arrangements together", () => {
+    expect(
+      filterJobs(jobs, {
+        ...defaultPreferences,
+        arrangements: ["Hybrid", "On-site"],
+      }).map((job) => job.id),
+    ).toEqual([2, 5]);
   });
   it("returns an empty result when salary is out of range", () => {
     expect(filterJobs(jobs, { ...defaultPreferences, salary: 150000 })).toEqual(
       [],
     );
   });
-  it("does not mutate sample data or scores", () => {
+  it("does not mutate sample data", () => {
     const before = JSON.stringify(jobs);
     filterJobs(jobs, { ...defaultPreferences, role: "designer" });
     expect(JSON.stringify(jobs)).toBe(before);

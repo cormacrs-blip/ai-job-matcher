@@ -3,13 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Bookmark,
-  Check,
-  FileText,
   MapPin,
   Search,
   SlidersHorizontal,
   Sparkles,
-  Upload,
   X,
 } from "lucide-react";
 import {
@@ -17,17 +14,17 @@ import {
   filterJobs,
   jobs,
   salary,
-  validateResume,
+  workArrangements,
   type Job,
 } from "@/lib/jobs";
+import { ResumeWorkbench } from "./resume-workbench";
+import { evaluateRole, type Profile } from "@/lib/matching/evaluator";
 export function Dashboard() {
   const [preferences, setPreferences] = useState(defaultPreferences);
-  const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState("");
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState<number[]>([]);
   const [onlySaved, setOnlySaved] = useState(false);
   const [selected, setSelected] = useState<Job | null>(null);
-  const input = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (selected) dialogRef.current?.showModal();
@@ -39,12 +36,6 @@ export function Dashboard() {
       ),
     [preferences, onlySaved, saved],
   );
-  function acceptFile(candidate?: File) {
-    if (!candidate) return;
-    const message = validateResume(candidate);
-    setError(message || "");
-    if (!message) setFile(candidate);
-  }
   return (
     <main className="dashboard shell">
       <div className="dashboard-heading">
@@ -60,75 +51,15 @@ export function Dashboard() {
       <div className="dashboard-disclaimer">
         <Sparkles size={17} />
         <p>
-          <strong>Explore the experience.</strong> These fictional jobs and
-          fixed fit scores are sample data, not AI recommendations. Your resume
-          is never uploaded or analyzed.
+          <strong>Evidence, not percentages.</strong> Fictional jobs, real
+          document text extraction, and an explicit rules prototype of your fit
+          rubric. Review the evidence, then evaluate. This is not AI analysis or
+          the full judgment of your ChatGPT agent.
         </p>
       </div>
       <div className="dashboard-grid">
         <aside className="sidebar">
-          <section className="panel">
-            <div className="panel-title">
-              <h2>Your resume</h2>
-              <FileText size={18} />
-            </div>
-            <p className="muted small">Start with the experience you bring.</p>
-            <div
-              className="upload-zone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                acceptFile(event.dataTransfer.files[0]);
-              }}
-            >
-              <Upload size={25} />
-              <strong>
-                {file ? "Resume selected" : "Drop your resume here"}
-              </strong>
-              <span>
-                {file ? file.name : "or choose a file to get started"}
-              </span>
-              <button
-                className="button secondary"
-                onClick={() => input.current?.click()}
-              >
-                {file ? "Replace file" : "Choose a file"}
-              </button>
-              <small>PDF or DOCX · Up to 10 MB</small>
-              <input
-                ref={input}
-                type="file"
-                accept=".pdf,.docx"
-                className="sr-only"
-                aria-label="Choose resume PDF or DOCX"
-                onChange={(event) => {
-                  acceptFile(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
-            </div>
-            {error && (
-              <p role="alert" className="error">
-                {error}
-              </p>
-            )}
-            {file && (
-              <div className="file-status">
-                <Check size={15} />
-                <span>Selected locally · No analysis performed</span>
-                <button
-                  aria-label="Remove selected resume"
-                  onClick={() => setFile(null)}
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            )}
-            <p className="privacy-note">
-              Your file stays in this browser tab and is cleared when you leave
-              or refresh.
-            </p>
-          </section>
+          <ResumeWorkbench onEvaluate={setProfile} />
           <section className="panel preferences">
             <div className="panel-title">
               <h2>Your preferences</h2>
@@ -139,7 +70,7 @@ export function Dashboard() {
               <Search size={16} />
               <input
                 id="role"
-                placeholder="e.g. Product Designer"
+                placeholder="e.g. Business Analyst"
                 value={preferences.role}
                 onChange={(event) =>
                   setPreferences({ ...preferences, role: event.target.value })
@@ -161,20 +92,31 @@ export function Dashboard() {
                 }
               />
             </div>
-            <label htmlFor="remote">Work arrangement</label>
-            <select
-              id="remote"
-              value={preferences.remote}
-              onChange={(event) =>
-                setPreferences({ ...preferences, remote: event.target.value })
-              }
-            >
-              {["Any arrangement", "Remote", "Hybrid", "On-site"].map(
-                (option) => (
-                  <option key={option}>{option}</option>
-                ),
-              )}
-            </select>
+            <fieldset className="arrangement-options">
+              <legend>Work arrangement</legend>
+              <p className="small muted">
+                Choose any combination. None selected means all arrangements.
+              </p>
+              {workArrangements.map((option) => (
+                <label className="arrangement-option" key={option}>
+                  <input
+                    type="checkbox"
+                    checked={preferences.arrangements.includes(option)}
+                    onChange={(event) => {
+                      setPreferences({
+                        ...preferences,
+                        arrangements: event.target.checked
+                          ? [...preferences.arrangements, option]
+                          : preferences.arrangements.filter(
+                              (item) => item !== option,
+                            ),
+                      });
+                    }}
+                  />
+                  {option}
+                </label>
+              ))}
+            </fieldset>
             <label htmlFor="salary">
               Minimum annual salary{" "}
               <span>
@@ -222,7 +164,7 @@ export function Dashboard() {
                 Saved <span>{saved.length}</span>
               </button>
             </div>
-            <span className="sort-label">Sample fit: high to low</span>
+            <span className="sort-label">Sample listing order</span>
           </div>
           <div className="results-caption">
             <span>
@@ -233,77 +175,86 @@ export function Dashboard() {
             <span>All salaries in CAD</span>
           </div>
           <div className="job-list">
-            {results.map((job) => (
-              <article className="job-card" key={job.id}>
-                <div className="job-top">
-                  <span className={`company-logo ${job.color}`}>
-                    {job.initials}
-                  </span>
-                  <div className="job-identity">
-                    <span>
-                      {job.company}{" "}
-                      <span className="posted">· {job.posted}</span>
+            {results.map((job) => {
+              const assessment = profile ? evaluateRole(job, profile) : null;
+              return (
+                <article className="job-card" key={job.id}>
+                  <div className="job-top">
+                    <span className={`company-logo ${job.color}`}>
+                      {job.initials}
                     </span>
-                    <h2>
-                      <button onClick={() => setSelected(job)}>
-                        {job.title}
-                      </button>
-                    </h2>
+                    <div className="job-identity">
+                      <span>
+                        {job.company}{" "}
+                        <span className="posted">· {job.posted}</span>
+                      </span>
+                      <h2>
+                        <button onClick={() => setSelected(job)}>
+                          {job.title}
+                        </button>
+                      </h2>
+                    </div>
+                    <button
+                      className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
+                      aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
+                      aria-pressed={saved.includes(job.id)}
+                      onClick={() =>
+                        setSaved(
+                          saved.includes(job.id)
+                            ? saved.filter((id) => id !== job.id)
+                            : [...saved, job.id],
+                        )
+                      }
+                    >
+                      <Bookmark
+                        size={19}
+                        fill={saved.includes(job.id) ? "currentColor" : "none"}
+                      />
+                    </button>
                   </div>
-                  <button
-                    className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
-                    aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
-                    aria-pressed={saved.includes(job.id)}
-                    onClick={() =>
-                      setSaved(
-                        saved.includes(job.id)
-                          ? saved.filter((id) => id !== job.id)
-                          : [...saved, job.id],
-                      )
-                    }
-                  >
-                    <Bookmark
-                      size={19}
-                      fill={saved.includes(job.id) ? "currentColor" : "none"}
-                    />
-                  </button>
-                </div>
-                <div className="job-meta">
-                  <span>
-                    <MapPin size={14} />
-                    {job.location}
-                  </span>
-                  <span>{job.remote}</span>
-                  <span>
-                    {salary(job.salaryMin)}–{salary(job.salaryMax)} / year
-                  </span>
-                </div>
-                <div className="job-tags">
-                  {job.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-                <div className="job-fit">
-                  <div className="fit-value">
-                    {job.score}
-                    <span>%</span>
-                    <small>Sample fit</small>
+                  <div className="job-meta">
+                    <span>
+                      <MapPin size={14} />
+                      {job.location}
+                    </span>
+                    <span>{job.remote}</span>
+                    <span>
+                      {salary(job.salaryMin)}–{salary(job.salaryMax)} / year
+                    </span>
                   </div>
-                  <div>
-                    <strong>
-                      <Sparkles size={13} /> Why this example fits
-                    </strong>
-                    <p>{job.explanation}</p>
+                  <div className="job-tags">
+                    {job.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
                   </div>
-                </div>
-                <div className="job-bottom">
-                  <span>Demonstration listing</span>
-                  <button onClick={() => setSelected(job)}>
-                    Explore role <ArrowUpRight size={16} />
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <div className="job-fit">
+                    <div>
+                      <strong
+                        className={`fit-status status-${assessment?.status.toLowerCase().replace(" ", "-") || "pending"}`}
+                      >
+                        <Sparkles size={16} />
+                        {assessment?.status || "Not evaluated"}
+                      </strong>
+                      <p>
+                        {assessment?.reason ||
+                          "Read a sample resume, review its evidence, then evaluate the jobs."}
+                      </p>
+                      {assessment?.question && (
+                        <p>
+                          <strong>Investigate:</strong> {assessment.question}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="job-bottom">
+                    <span>Demonstration listing</span>
+                    <button onClick={() => setSelected(job)}>
+                      Explore role <ArrowUpRight size={16} />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
           {results.length === 0 && (
             <div className="empty-state">
@@ -361,14 +312,67 @@ export function Dashboard() {
             </p>
             <h3>The opportunity</h3>
             <p>{selected.description}</p>
-            <h3>Illustrative alignment · {selected.score}%</h3>
-            <p>{selected.explanation}</p>
-            <h3>A potential area to develop</h3>
-            <p>{selected.gap}</p>
+            <h3>Defining responsibilities</h3>
+            <ul>
+              {selected.responsibilities.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <h3>Essential requirements</h3>
+            <ul>
+              {selected.essentials.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <h3>Preferred qualifications</h3>
+            <ul>
+              {selected.preferred.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <h3>
+              {profile
+                ? evaluateRole(selected, profile).status
+                : "Not evaluated"}
+            </h3>
+            {profile && (
+              <>
+                <p>{evaluateRole(selected, profile).reason}</p>
+                {evaluateRole(selected, profile).question && (
+                  <p>{evaluateRole(selected, profile).question}</p>
+                )}
+                <div className="evidence-table-wrap">
+                  <table>
+                    <caption>
+                      Defining work and reviewed resume evidence
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Responsibility</th>
+                        <th>Assessment</th>
+                        <th>Evidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evaluateRole(selected, profile).rows.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.label}</td>
+                          <td>{row.level}</td>
+                          <td>
+                            {row.quote || "Unknown — no evidence supplied"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
             <div className="modal-note">
-              This is a fictional listing with a fixed demonstration score. It
-              has not been matched to your resume. Applications are unavailable
-              in this prototype.
+              Fictional listing. These categories come from explicit prototype
+              rules applied to reviewed evidence, not AI inference. Supporting
+              keyword matches cannot override central gaps. Applications are
+              unavailable.
             </div>
             <button
               className="button primary"

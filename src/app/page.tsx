@@ -45,7 +45,7 @@ export default function Home() {
           </div>
           <div
             className="hero-art"
-            aria-label="Illustration of a sample job match"
+            aria-label="Illustration of a sample job opportunity"
           >
             <div className="orbit orbit-one" />
             <div className="orbit orbit-two" />
@@ -73,19 +73,14 @@ export default function Home() {
               </div>
               <div className="preview-score">
                 <div>
-                  <span className="score-ring">
-                    94<span>%</span>
-                  </span>
-                </div>
-                <div>
-                  <strong>Room to do your best work.</strong>
-                  <p>Illustrative fit score</p>
+                  <strong>Look beyond the job title.</strong>
+                  <p>Explore the work, evidence, and gaps.</p>
                 </div>
               </div>
               <div className="preview-reason">
-                <Check size={15} /> Experience that connects.
+                <Check size={15} /> Your experience, in context.
                 <br />
-                <Check size={15} /> Space for what comes next.
+                <Check size={15} /> A clearer application decision.
               </div>
               <div className="preview-footer">
                 A glimpse of what’s possible <ArrowUpRight size={17} />
@@ -167,8 +162,8 @@ export default function Home() {
           </span>
           <p>
             <strong>A thoughtful prototype, a transparent beginning.</strong>{" "}
-            All jobs and fit scores are demonstration data. No AI analysis or
-            live job search is performed.
+            All jobs are fictional demonstration data. No AI analysis or live
+            job search is performed.
           </p>
           <span className="small-tag">EARLY EXPLORATION</span>
         </section>
