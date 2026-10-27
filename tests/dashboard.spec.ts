@@ -260,3 +260,77 @@ test("pasted resume stays local and quoted limitations remain visible", async ({
     page.getByLabel("Resume text (processed in this browser)"),
   ).toBeEmpty();
 });
+
+test("imports real-job tracker data locally and keeps historical statuses and sources clear", async ({
+  page,
+}) => {
+  const fake = {
+    format: "align-tracker-v1",
+    generatedAt: "2026-10-27T00:00:00Z",
+    jobs: [
+      {
+        id: "1",
+        title: "Business Analyst",
+        company: "Example Corp",
+        location: "Vancouver",
+        url: "https://example.org/jobs/1",
+        references: [
+          { sheet: "BC", row: 2, trackerStatus: "Applied", recordedFit: "Fit" },
+        ],
+        fetchStatus: "html",
+        descriptions: [
+          {
+            text: "Requirements: review customer journeys. <script>window.injection=true</script>",
+            source: "Archived page text",
+            retrievedAt: "2026-10-27T00:00:00Z",
+            truncated: false,
+          },
+        ],
+      },
+      {
+        id: "2",
+        title: "Product Owner",
+        company: "Other Co",
+        location: "Toronto",
+        url: "",
+        references: [{ sheet: "Ontario", row: 8 }],
+        fetchStatus: "robots_disallowed_or_unavailable",
+        descriptions: [],
+      },
+    ],
+  };
+  let trackerPosts = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST") trackerPosts++;
+  });
+  await page.goto("/dashboard");
+  await page
+    .getByRole("link", { name: "Explore imported tracker jobs" })
+    .click();
+  await page
+    .getByLabel("Choose your recovered Align tracker file")
+    .setInputFiles({
+      name: "tracker.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(fake)),
+    });
+  await expect(page.getByRole("status")).toContainText("2 entries");
+  await page.getByLabel("Only jobs with recovered text").check();
+  await expect(page.locator(".tracker-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "View job and sources" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Status: Applied");
+  await expect(dialog).toContainText("Archived page text");
+  await expect(dialog).toContainText(
+    "Completeness and current vacancy status are unverified",
+  );
+  expect(await page.evaluate(() => "injection" in window)).toBe(false);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Search company, title or location").fill("Other");
+  await expect(page.getByText("No jobs match these filters.")).toBeVisible();
+  await page.getByLabel("Only jobs with recovered text").uncheck();
+  await expect(page.locator(".tracker-card")).toHaveCount(1);
+  expect(trackerPosts).toBe(0);
+  await page.getByRole("button", { name: "Clear imported data" }).click();
+  await expect(page.locator(".tracker-card")).toHaveCount(0);
+});

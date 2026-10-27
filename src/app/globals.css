@@ -1665,3 +1665,98 @@ input::placeholder {
   padding: 10px;
   border-radius: 5px;
 }
+.tracker-entry {
+  margin: 0 0 24px;
+}
+.tracker-upload {
+  margin: 24px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.tracker-upload label {
+  font-weight: 600;
+}
+.tracker-upload .small {
+  flex-basis: 100%;
+}
+.tracker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 24px;
+  margin: 24px 0;
+}
+.tracker-controls label:first-child {
+  display: grid;
+  gap: 10px;
+  min-width: min(350px, 100%);
+}
+.tracker-controls input[type="search"] {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 12px;
+  background: white;
+}
+.tracker-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tracker-check input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--green);
+}
+.tracker-count {
+  margin: 16px 0;
+}
+.tracker-results > .small {
+  margin-bottom: 22px;
+}
+.tracker-card {
+  padding: 22px;
+}
+.tracker-card h2 {
+  font-size: 21px;
+  font-weight: 600;
+}
+.tracker-card p {
+  margin: 10px 0;
+  line-height: 1.6;
+  color: #65715d;
+}
+.tracker-card .button {
+  margin-top: 10px;
+}
+.tracker-pagination {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  margin: 25px 0;
+}
+.tracker-dialog {
+  max-width: 850px;
+}
+.tracker-dialog .tracker-link {
+  text-decoration: underline;
+  color: var(--green);
+}
+.recovered-source {
+  margin: 18px 0;
+  padding: 16px;
+  background: #f0f3e9;
+  border-radius: 6px;
+}
+.recovered-source pre {
+  font: inherit;
+  font-size: 15px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  max-height: 55vh;
+  overflow: auto;
+  margin: 16px 0;
+}

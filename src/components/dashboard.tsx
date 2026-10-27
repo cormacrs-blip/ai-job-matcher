@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ArrowUpRight,
   Bookmark,
@@ -77,6 +78,11 @@ export function Dashboard() {
           rubric. Review the evidence, then evaluate. This is not AI analysis or
           the full judgment of your ChatGPT agent.
         </p>
+      </div>
+      <div className="tracker-entry">
+        <Link className="button secondary" href="/tracker">
+          Explore imported tracker jobs →
+        </Link>
       </div>
       <div className="dashboard-grid">
         <aside className="sidebar">

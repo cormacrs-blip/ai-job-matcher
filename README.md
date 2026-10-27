@@ -34,6 +34,14 @@ The original business analyst and incomplete profile downloads contain explicit 
 
 Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names never choose an assessment. Both PDF and DOCX contents are extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Visible sample salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
 
+## Import a recovered job tracker
+
+Open **Explore imported tracker jobs** from the dashboard and select an `align-tracker-v1` JSON file. Import is entirely browser-side: the data is not sent to the app server, persisted, or added to the Git repository. It is cleared on refresh or when you choose **Clear imported data**. The file can include private tracker statuses and notes, so keep the file private.
+
+The browser groups only identical posting URLs, preserving each source tab, row, tracker status, and past fit rating separately. Records with no URL remain separate and different URLs can represent the same vacancy. Search by company, title or location; filter for records with recovered text; open a record to inspect source text and provenance. Historical tracker decisions are not a fresh fit assessment. A captured page or structured description does not establish completeness, an open vacancy, or a current application link. Pages that disallow automated access, fail or do not yield substantial text remain listed with no recovered text; cached notes can contain excerpts or analysis.
+
+The tracker browser is separate from the fictional evaluator. Imported postings do not receive a generated status or ranking: evaluation of arbitrary real job descriptions is a future feature. Extraction and review of the user's tracker data are performed outside the repository. Only synthetic tracker fixtures are included in the tests.
+
 ## What the evaluator does—and does not do
 
 This is an explicit **rules prototype**, not AI analysis or a faithful implementation of every qualitative judgment in Cormac's ChatGPT work agent. Fictional resumes contain readable annotations such as `Evidence [requirements]: Demonstrated | Led discovery workshops...`. The parser reads these declarations; it does not independently infer or verify career achievements. Ordinary resumes can be extracted, but unrecognized evidence remains Unknown until the user reviews it. Simply mentioning a skill does not establish capability. These annotations deliberately make controlled examples reproducible; they are not a production resume format requirement.
