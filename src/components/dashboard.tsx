@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   ArrowUpRight,
   Bookmark,
@@ -19,10 +18,12 @@ import {
   type Job,
 } from "@/lib/jobs";
 import { ResumeWorkbench } from "./resume-workbench";
+import { TrackerBrowser } from "./tracker-browser";
 import { evaluateRole, type Profile } from "@/lib/matching/evaluator";
 import { createEvaluationReport, nextAction } from "@/lib/matching/report";
 export function Dashboard() {
   const [preferences, setPreferences] = useState(defaultPreferences);
+  const [jobSource, setJobSource] = useState<"tracker" | "sample">("tracker");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState<number[]>([]);
   const [onlySaved, setOnlySaved] = useState(false);
@@ -73,19 +74,16 @@ export function Dashboard() {
       <div className="dashboard-disclaimer">
         <Sparkles size={17} />
         <p>
-          <strong>Evidence, not percentages.</strong> Fictional jobs, real
-          document text extraction, and an explicit rules prototype of your fit
-          rubric. Review the evidence, then evaluate. This is not AI analysis or
-          the full judgment of your ChatGPT agent.
+          <strong>Evidence, not percentages.</strong> Import your tracker to
+          explore real jobs. Sample jobs demonstrate a limited rules-based
+          evaluation; imported jobs retain their historical tracker assessments
+          and are not newly evaluated.
         </p>
       </div>
-      <div className="tracker-entry">
-        <Link className="button secondary" href="/tracker">
-          Explore imported tracker jobs →
-        </Link>
-      </div>
-      <div className="dashboard-grid">
-        <aside className="sidebar">
+      <div
+        className={`dashboard-grid ${jobSource === "tracker" ? "tracker-mode" : ""}`}
+      >
+        <aside className="sidebar" hidden={jobSource !== "sample"}>
           <ResumeWorkbench onEvaluate={setProfile} />
           <section className="panel preferences">
             <div className="panel-title">
@@ -176,157 +174,186 @@ export function Dashboard() {
           </section>
         </aside>
         <section className="results">
-          <div className="results-toolbar">
-            <div className="result-tabs">
-              <button
-                className={!onlySaved ? "active" : ""}
-                onClick={() => setOnlySaved(false)}
-              >
-                All opportunities <span>{jobs.length}</span>
-              </button>
-              <button
-                className={onlySaved ? "active" : ""}
-                onClick={() => setOnlySaved(true)}
-              >
-                Saved <span>{saved.length}</span>
-              </button>
-            </div>
-            <span className="sort-label">Sample listing order</span>
+          <div className="source-selector" aria-label="Choose job source">
+            <button
+              type="button"
+              aria-pressed={jobSource === "tracker"}
+              onClick={() => setJobSource("tracker")}
+            >
+              Your tracker jobs
+            </button>
+            <button
+              type="button"
+              aria-pressed={jobSource === "sample"}
+              onClick={() => setJobSource("sample")}
+            >
+              Sample opportunities
+            </button>
           </div>
-          {profile && (
-            <div className="status-filter">
-              <label htmlFor="fit-status">Show category</label>
-              <select
-                id="fit-status"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                {[
-                  "All statuses",
-                  "Fit",
-                  "Consider",
-                  "Investigate",
-                  "Weak Fit",
-                ].map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="results-caption">
-            <span>
-              {results.length}{" "}
-              {results.length === 1 ? "opportunity" : "opportunities"} to
-              explore
-            </span>
-            <span>All salaries in CAD</span>
+          <div hidden={jobSource !== "tracker"}>
+            <TrackerBrowser embedded />
           </div>
-          <div className="job-list">
-            {results.map((job) => {
-              const assessment = profile ? evaluateRole(job, profile) : null;
-              return (
-                <article className="job-card" key={job.id}>
-                  <div className="job-top">
-                    <span className={`company-logo ${job.color}`}>
-                      {job.initials}
-                    </span>
-                    <div className="job-identity">
-                      <span>
-                        {job.company}{" "}
-                        <span className="posted">· {job.posted}</span>
-                      </span>
-                      <h2>
-                        <button onClick={() => setSelected(job)}>
-                          {job.title}
-                        </button>
-                      </h2>
-                    </div>
-                    <button
-                      className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
-                      aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
-                      aria-pressed={saved.includes(job.id)}
-                      onClick={() =>
-                        setSaved(
-                          saved.includes(job.id)
-                            ? saved.filter((id) => id !== job.id)
-                            : [...saved, job.id],
-                        )
-                      }
-                    >
-                      <Bookmark
-                        size={19}
-                        fill={saved.includes(job.id) ? "currentColor" : "none"}
-                      />
-                    </button>
-                  </div>
-                  <div className="job-meta">
-                    <span>
-                      <MapPin size={14} />
-                      {job.location}
-                    </span>
-                    <span>{job.remote}</span>
-                    <span>
-                      {salary(job.salaryMin)}–{salary(job.salaryMax)} / year
-                    </span>
-                  </div>
-                  <div className="job-tags">
-                    {job.tags.map((tag) => (
-                      <span key={tag}>{tag}</span>
+          {jobSource === "sample" && (
+            <>
+              <div className="results-toolbar">
+                <div className="result-tabs">
+                  <button
+                    className={!onlySaved ? "active" : ""}
+                    onClick={() => setOnlySaved(false)}
+                  >
+                    All opportunities <span>{jobs.length}</span>
+                  </button>
+                  <button
+                    className={onlySaved ? "active" : ""}
+                    onClick={() => setOnlySaved(true)}
+                  >
+                    Saved <span>{saved.length}</span>
+                  </button>
+                </div>
+                <span className="sort-label">Sample listing order</span>
+              </div>
+              {profile && (
+                <div className="status-filter">
+                  <label htmlFor="fit-status">Show category</label>
+                  <select
+                    id="fit-status"
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    {[
+                      "All statuses",
+                      "Fit",
+                      "Consider",
+                      "Investigate",
+                      "Weak Fit",
+                    ].map((value) => (
+                      <option key={value}>{value}</option>
                     ))}
-                  </div>
-                  <div className="job-fit">
-                    <div>
-                      <strong
-                        className={`fit-status status-${assessment?.status.toLowerCase().replace(" ", "-") || "pending"}`}
-                      >
-                        <Sparkles size={16} />
-                        {assessment?.status || "Not evaluated"}
-                      </strong>
-                      <p>
-                        {assessment?.reason ||
-                          "Read a sample resume, review its evidence, then evaluate the jobs."}
-                      </p>
-                      {assessment?.question && (
-                        <p>
-                          <strong>Investigate:</strong> {assessment.question}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="job-bottom">
-                    <span>Demonstration listing</span>
-                    <button onClick={() => setSelected(job)}>
-                      Explore role <ArrowUpRight size={16} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {results.length === 0 && (
-            <div className="empty-state">
-              <Search size={28} />
-              <h2>No opportunities here yet.</h2>
-              <p>
-                {onlySaved
-                  ? "Save an opportunity from the All opportunities tab."
-                  : "Try a broader role, location, or salary preference."}
+                  </select>
+                </div>
+              )}
+              <div className="results-caption">
+                <span>
+                  {results.length}{" "}
+                  {results.length === 1 ? "opportunity" : "opportunities"} to
+                  explore
+                </span>
+                <span>All salaries in CAD</span>
+              </div>
+              <div className="job-list">
+                {results.map((job) => {
+                  const assessment = profile
+                    ? evaluateRole(job, profile)
+                    : null;
+                  return (
+                    <article className="job-card" key={job.id}>
+                      <div className="job-top">
+                        <span className={`company-logo ${job.color}`}>
+                          {job.initials}
+                        </span>
+                        <div className="job-identity">
+                          <span>
+                            {job.company}{" "}
+                            <span className="posted">· {job.posted}</span>
+                          </span>
+                          <h2>
+                            <button onClick={() => setSelected(job)}>
+                              {job.title}
+                            </button>
+                          </h2>
+                        </div>
+                        <button
+                          className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
+                          aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
+                          aria-pressed={saved.includes(job.id)}
+                          onClick={() =>
+                            setSaved(
+                              saved.includes(job.id)
+                                ? saved.filter((id) => id !== job.id)
+                                : [...saved, job.id],
+                            )
+                          }
+                        >
+                          <Bookmark
+                            size={19}
+                            fill={
+                              saved.includes(job.id) ? "currentColor" : "none"
+                            }
+                          />
+                        </button>
+                      </div>
+                      <div className="job-meta">
+                        <span>
+                          <MapPin size={14} />
+                          {job.location}
+                        </span>
+                        <span>{job.remote}</span>
+                        <span>
+                          {salary(job.salaryMin)}–{salary(job.salaryMax)} / year
+                        </span>
+                      </div>
+                      <div className="job-tags">
+                        {job.tags.map((tag) => (
+                          <span key={tag}>{tag}</span>
+                        ))}
+                      </div>
+                      <div className="job-fit">
+                        <div>
+                          <strong
+                            className={`fit-status status-${assessment?.status.toLowerCase().replace(" ", "-") || "pending"}`}
+                          >
+                            <Sparkles size={16} />
+                            {assessment?.status || "Not evaluated"}
+                          </strong>
+                          <p>
+                            {assessment?.reason ||
+                              "Read a sample resume, review its evidence, then evaluate the jobs."}
+                          </p>
+                          {assessment?.question && (
+                            <p>
+                              <strong>Investigate:</strong>{" "}
+                              {assessment.question}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="job-bottom">
+                        <span>Demonstration listing</span>
+                        <button onClick={() => setSelected(job)}>
+                          Explore role <ArrowUpRight size={16} />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {results.length === 0 && (
+                <div className="empty-state">
+                  <Search size={28} />
+                  <h2>No opportunities here yet.</h2>
+                  <p>
+                    {onlySaved
+                      ? "Save an opportunity from the All opportunities tab."
+                      : "Try a broader role, location, or salary preference."}
+                  </p>
+                  <button
+                    className="button secondary"
+                    onClick={() => {
+                      setPreferences(defaultPreferences);
+                      setOnlySaved(false);
+                      setStatusFilter("All statuses");
+                    }}
+                  >
+                    Show all opportunities
+                  </button>
+                </div>
+              )}
+              <p className="results-end">
+                A starting point for your next chapter. More possibilities to
+                come.
               </p>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  setPreferences(defaultPreferences);
-                  setOnlySaved(false);
-                  setStatusFilter("All statuses");
-                }}
-              >
-                Show all opportunities
-              </button>
-            </div>
+            </>
           )}
-          <p className="results-end">
-            A starting point for your next chapter. More possibilities to come.
-          </p>
         </section>
       </div>
       {selected && (

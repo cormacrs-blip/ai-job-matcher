@@ -10,6 +10,7 @@ test("responsive navigation, multi-select filters, saved jobs and role details",
     ),
   ).toBe(true);
   await page.getByRole("link", { name: "Find your next opportunity" }).click();
+  await page.getByRole("button", { name: "Sample opportunities" }).click();
   await expect(page.locator(".job-card")).toHaveCount(5);
   await page.getByLabel("Role or job title").fill("digital business");
   await expect(page.locator(".job-card")).toHaveCount(1);
@@ -45,6 +46,7 @@ for (const extension of ["pdf", "docx"])
     page,
   }) => {
     await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Sample opportunities" }).click();
     const input = page.getByLabel("Choose resume PDF or DOCX");
     await expect(page.locator(".status-pending")).toHaveCount(5);
     await input.setInputFiles(
@@ -102,6 +104,7 @@ test("rejects invalid content and ordinary resume evidence stays unknown", async
   });
   expect(response.status()).toBe(400);
   await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page.getByLabel("Choose resume PDF or DOCX").setInputFiles({
     name: "bad.exe",
     mimeType: "application/octet-stream",
@@ -137,6 +140,7 @@ test("removing a resume cancels an in-flight read and prevents stale evidence", 
     });
   });
   await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page
     .getByLabel("Choose resume PDF or DOCX")
     .setInputFiles(path.resolve("public/sample-resumes/business-analyst.pdf"));
@@ -161,6 +165,7 @@ for (const extension of ["pdf", "docx"])
     page,
   }) => {
     await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Sample opportunities" }).click();
     await page
       .getByLabel("Choose resume PDF or DOCX")
       .setInputFiles(
@@ -225,6 +230,7 @@ test("pasted resume stays local and quoted limitations remain visible", async ({
     if (request.url().endsWith("/api/resume")) uploads++;
   });
   await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page.getByText("Or paste resume text", { exact: true }).click();
   await page
     .getByLabel("Resume text (processed in this browser)")
@@ -304,9 +310,9 @@ test("imports real-job tracker data locally and keeps historical statuses and so
     if (r.method() === "POST") trackerPosts++;
   });
   await page.goto("/dashboard");
-  await page
-    .getByRole("link", { name: "Explore imported tracker jobs" })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "Your tracker jobs" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
@@ -314,6 +320,10 @@ test("imports real-job tracker data locally and keeps historical statuses and so
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(fake)),
     });
+  await expect(page.getByRole("status")).toContainText("2 entries");
+  await page.getByRole("button", { name: "Sample opportunities" }).click();
+  await expect(page.locator(".job-card:visible")).toHaveCount(5);
+  await page.getByRole("button", { name: "Your tracker jobs" }).click();
   await expect(page.getByRole("status")).toContainText("2 entries");
   await page.getByLabel("Only jobs with recovered text").check();
   await expect(page.locator(".tracker-card")).toHaveCount(1);

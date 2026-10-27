@@ -8,7 +8,8 @@ import {
   type TrackerJob,
 } from "@/lib/tracker-import";
 const PAGE_SIZE = 25;
-export function TrackerBrowser() {
+export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
+  const Container = embedded ? "div" : "main";
   const [dataset, setDataset] = useState<TrackerDataset | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -86,17 +87,19 @@ export function TrackerBrowser() {
     }
   }
   return (
-    <main className="dashboard shell">
-      <div className="dashboard-heading">
-        <div>
-          <span className="eyebrow">YOUR TRACKER</span>
-          <h1>Explore your saved jobs.</h1>
-          <p>Browse imported tracker entries and recovered posting text.</p>
+    <Container className={embedded ? "tracker-embedded" : "dashboard shell"}>
+      {!embedded && (
+        <div className="dashboard-heading">
+          <div>
+            <span className="eyebrow">YOUR TRACKER</span>
+            <h1>Explore your saved jobs.</h1>
+            <p>Browse imported tracker entries and recovered posting text.</p>
+          </div>
+          <Link className="button secondary" href="/dashboard">
+            Back to dashboard
+          </Link>
         </div>
-        <Link className="button secondary" href="/dashboard">
-          Back to dashboard
-        </Link>
-      </div>
+      )}
       <div className="dashboard-disclaimer">
         <p>
           <strong>Private browser import.</strong> Your file is read in this
@@ -299,6 +302,6 @@ export function TrackerBrowser() {
           </button>
         </dialog>
       )}
-    </main>
+    </Container>
   );
 }

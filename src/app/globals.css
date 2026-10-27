@@ -1760,3 +1760,39 @@ input::placeholder {
   overflow: auto;
   margin: 16px 0;
 }
+
+.source-selector {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  flex-wrap: wrap;
+}
+.source-selector button {
+  padding: 11px 16px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 15px;
+}
+.source-selector button[aria-pressed="true"] {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+}
+.tracker-embedded .dashboard-disclaimer {
+  margin: 16px 0;
+}
+.tracker-embedded .tracker-upload {
+  margin: 16px 0;
+}
+.tracker-embedded .tracker-controls {
+  gap: 16px;
+}
+
+.dashboard-grid.tracker-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+.dashboard-grid [hidden] {
+  display: none !important;
+}
