@@ -82,6 +82,16 @@ export async function readTrackerSpreadsheet(
       job.references.push({
         sheet: name,
         row: row + 1,
+        ...(value(row, "Location") ? { location: value(row, "Location") } : {}),
+        ...(value(row, "Salary / Contract")
+          ? { salary: value(row, "Salary / Contract") }
+          : {}),
+        ...(value(row, "Notes") || value(row, "Screening / Ranking Reason")
+          ? {
+              notes:
+                value(row, "Notes") || value(row, "Screening / Ranking Reason"),
+            }
+          : {}),
         ...(status ? { trackerStatus: status } : {}),
         ...(fit ? { recordedFit: fit } : {}),
       });

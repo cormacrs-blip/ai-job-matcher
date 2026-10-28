@@ -68,7 +68,7 @@ export function Dashboard() {
           <p>Your priorities. A few possibilities. A clearer way forward.</p>
         </div>
         <span className="dashboard-badge">
-          <Sparkles size={15} /> Demo workspace
+          <Sparkles size={15} /> Prototype
         </span>
       </div>
       <div className="dashboard-disclaimer">
@@ -80,11 +80,15 @@ export function Dashboard() {
           and are not newly evaluated.
         </p>
       </div>
-      <div
-        className={`dashboard-grid ${jobSource === "tracker" ? "tracker-mode" : ""}`}
-      >
-        <aside className="sidebar" hidden={jobSource !== "sample"}>
+      <div className="dashboard-grid">
+        <aside className="sidebar">
           <ResumeWorkbench onEvaluate={setProfile} />
+          {jobSource === "tracker" && (
+            <p className="small muted">
+              Resume evaluation currently applies to sample jobs. Tracker
+              ratings are historical.
+            </p>
+          )}
           <section className="panel preferences">
             <div className="panel-title">
               <h2>Your preferences</h2>
@@ -163,7 +167,7 @@ export function Dashboard() {
               }
             />
             <p className="small muted">
-              CAD · Includes roles whose salary range reaches your minimum.
+              CAD annual · Unclear tracker salaries are included by default.
             </p>
             <button
               className="reset-button"
@@ -191,7 +195,7 @@ export function Dashboard() {
             </button>
           </div>
           <div hidden={jobSource !== "tracker"}>
-            <TrackerBrowser embedded />
+            <TrackerBrowser embedded preferences={preferences} />
           </div>
           {jobSource === "sample" && (
             <>

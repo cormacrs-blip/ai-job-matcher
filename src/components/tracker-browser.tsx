@@ -1,5 +1,12 @@
 "use client";
 import Link from "next/link";
+import { Bookmark, MapPin, Sparkles } from "lucide-react";
+import type { Preferences } from "@/lib/jobs";
+import {
+  matchesTrackerPreferences,
+  recordedRatings,
+  trackerArrangements,
+} from "@/lib/tracker-filters";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   readTrackerDataset,
@@ -8,14 +15,24 @@ import {
   type TrackerJob,
 } from "@/lib/tracker-import";
 const PAGE_SIZE = 25;
-export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
+export function TrackerBrowser({
+  embedded = false,
+  preferences,
+}: {
+  embedded?: boolean;
+  preferences?: Preferences;
+}) {
   const Container = embedded ? "div" : "main";
   const [dataset, setDataset] = useState<TrackerDataset | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [onlyText, setOnlyText] = useState(false);
+  const [includeUnknown, setIncludeUnknown] = useState(true);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<TrackerJob | null>(null);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [onlySaved, setOnlySaved] = useState(false);
+  const [rating, setRating] = useState("All recorded ratings");
   const dialog = useRef<HTMLDialogElement>(null);
   const readerSequence = useRef(0);
   useEffect(() => {
@@ -26,11 +43,47 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
     return (dataset?.jobs || []).filter(
       (job) =>
         (!onlyText || job.descriptions.length > 0) &&
-        [job.company, job.title, job.location].some((x) =>
-          x.toLowerCase().includes(term),
-        ),
+        (!onlySaved || saved.includes(job.id)) &&
+        (rating === "All recorded ratings" ||
+          recordedRatings(job).some(
+            (value) => value.toLowerCase() === rating.toLowerCase(),
+          )) &&
+        (!preferences ||
+          matchesTrackerPreferences(job, preferences, includeUnknown)) &&
+        [
+          job.company,
+          job.title,
+          job.location,
+          ...job.references.map((ref) => ref.location || ""),
+        ].some((x) => x.toLowerCase().includes(term)),
     );
-  }, [dataset, query, onlyText]);
+  }, [
+    dataset,
+    query,
+    onlyText,
+    onlySaved,
+    saved,
+    rating,
+    preferences,
+    includeUnknown,
+  ]);
+  const filterKey = JSON.stringify({
+    preferences,
+    query,
+    onlyText,
+    onlySaved,
+    rating,
+    includeUnknown,
+  });
+  const [pageKey, setPageKey] = useState("");
+  const activePage =
+    pageKey === filterKey
+      ? Math.min(page, Math.max(0, Math.ceil(results.length / PAGE_SIZE) - 1))
+      : 0;
+  function goPage(next: number) {
+    setPageKey(filterKey);
+    setPage(next);
+  }
   async function load(file?: File) {
     if (!file) return;
     const current = ++readerSequence.current;
@@ -48,6 +101,9 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
         const data = await readTrackerSpreadsheet(await file.arrayBuffer());
         if (current !== readerSequence.current) return;
         setDataset(data);
+        setSaved([]);
+        setOnlySaved(false);
+        setRating("All recorded ratings");
         setQuery("");
         setOnlyText(false);
         setPage(0);
@@ -78,6 +134,9 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
       const data = readTrackerDataset(text);
       if (current !== readerSequence.current) return;
       setDataset(data);
+      setSaved([]);
+      setOnlySaved(false);
+      setRating("All recorded ratings");
       setQuery("");
       setOnlyText(false);
       setPage(0);
@@ -138,6 +197,9 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
             onClick={() => {
               readerSequence.current++;
               setDataset(null);
+              setSaved([]);
+              setOnlySaved(false);
+              setRating("All recorded ratings");
               setSelected(null);
               setError("");
             }}
@@ -148,6 +210,29 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
       </section>
       {dataset && (
         <section className="tracker-results">
+          <div className="results-toolbar">
+            <div className="result-tabs">
+              <button
+                className={!onlySaved ? "active" : ""}
+                onClick={() => {
+                  setOnlySaved(false);
+                  setPage(0);
+                }}
+              >
+                All opportunities <span>{dataset.jobs.length}</span>
+              </button>
+              <button
+                className={onlySaved ? "active" : ""}
+                onClick={() => {
+                  setOnlySaved(true);
+                  setPage(0);
+                }}
+              >
+                Saved <span>{saved.length}</span>
+              </button>
+            </div>
+            <span className="sort-label">Tracker order</span>
+          </div>
           <div className="tracker-controls">
             <label>
               Search company, title or location
@@ -161,6 +246,27 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
                 placeholder="e.g. Product Manager"
               />
             </label>
+            <label>
+              Recorded fit{" "}
+              <select
+                aria-label="Recorded fit"
+                value={rating}
+                onChange={(event) => {
+                  setRating(event.target.value);
+                  setPage(0);
+                }}
+              >
+                {[
+                  "All recorded ratings",
+                  "Fit",
+                  "Consider",
+                  "Investigate",
+                  "Weak Fit",
+                ].map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </label>
             <label className="tracker-check">
               <input
                 type="checkbox"
@@ -173,12 +279,30 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
               Only jobs with recovered text
             </label>
           </div>
+          {embedded && (
+            <label className="tracker-check">
+              <input
+                type="checkbox"
+                checked={includeUnknown}
+                onChange={(event) => setIncludeUnknown(event.target.checked)}
+              />{" "}
+              Include unknown work arrangement or salary
+            </label>
+          )}
           <p className="tracker-count" role="status">
             {results.length} entries ·{" "}
             {dataset.jobs.filter((j) => j.descriptions.length > 0).length} with
             recovered or cached text · imported{" "}
             {new Date(dataset.generatedAt).toLocaleDateString()}
           </p>
+          {embedded && (
+            <p className="small muted">
+              The preferences on the left filter these jobs. Unknown work
+              arrangements and unclear annual CAD salaries are included by
+              default when those filters are active. Fit labels are past tracker
+              ratings, not new resume evaluations.
+            </p>
+          )}
           <p className="small muted">
             Entries are grouped only by identical posting URLs. Links without a
             URL remain separate; different URLs may still represent the same
@@ -187,13 +311,87 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
           </p>
           <div className="job-list">
             {results
-              .slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+              .slice(activePage * PAGE_SIZE, (activePage + 1) * PAGE_SIZE)
               .map((job) => (
                 <article className="job-card tracker-card" key={job.id}>
-                  <h2>{job.title}</h2>
-                  <p>
-                    {job.company} · {job.location || "Location unknown"}
-                  </p>
+                  <div className="job-top">
+                    <span className="company-logo mint">
+                      {job.company.slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="job-identity">
+                      <span>{job.company}</span>
+                      <h2>
+                        <button onClick={() => setSelected(job)}>
+                          {job.title}
+                        </button>
+                      </h2>
+                    </div>
+                    <button
+                      className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
+                      aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
+                      aria-pressed={saved.includes(job.id)}
+                      onClick={() =>
+                        setSaved(
+                          saved.includes(job.id)
+                            ? saved.filter((id) => id !== job.id)
+                            : [...saved, job.id],
+                        )
+                      }
+                    >
+                      <Bookmark
+                        size={19}
+                        fill={saved.includes(job.id) ? "currentColor" : "none"}
+                      />
+                    </button>
+                  </div>
+                  <div className="job-meta">
+                    <span>
+                      <MapPin size={14} />
+                      {job.location || "Location unknown"}
+                    </span>
+                    <span>
+                      {trackerArrangements(job).join(" / ") ||
+                        "Work arrangement unknown"}
+                    </span>
+                    <span>
+                      {[
+                        ...new Set(
+                          job.references
+                            .map((ref) => ref.salary)
+                            .filter(Boolean),
+                        ),
+                      ].join(" / ") || "Salary unknown"}
+                    </span>
+                  </div>
+                  <div className="job-fit">
+                    <div>
+                      <strong>
+                        <Sparkles size={16} />
+                        {recordedRatings(job).length === 1
+                          ? `Recorded: ${recordedRatings(job)[0]}`
+                          : recordedRatings(job).length > 1
+                            ? "Conflicting recorded ratings"
+                            : "Not evaluated"}
+                      </strong>
+                      <p>
+                        {recordedRatings(job).length
+                          ? "Historical tracker rating; not a new resume evaluation."
+                          : "No historical fit rating recorded."}
+                      </p>
+                    </div>
+                  </div>
+                  {job.references.find((ref) => ref.notes)?.notes && (
+                    <p className="tracker-note">
+                      <strong>Recorded note:</strong>{" "}
+                      {job.references
+                        .find((ref) => ref.notes)!
+                        .notes!.slice(0, 300)}
+                      {job.references.find((ref) => ref.notes)!.notes!.length >
+                      300
+                        ? "…"
+                        : ""}
+                    </p>
+                  )}
                   <p>
                     {job.descriptions.length
                       ? `${job.descriptions.length} text source${job.descriptions.length === 1 ? "" : "s"} available — completeness unverified`
@@ -212,19 +410,19 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
           <div className="tracker-pagination">
             <button
               className="button secondary"
-              disabled={page === 0}
-              onClick={() => setPage(page - 1)}
+              disabled={activePage === 0}
+              onClick={() => goPage(activePage - 1)}
             >
               Previous
             </button>
             <span>
-              Page {results.length ? page + 1 : 0} of{" "}
+              Page {results.length ? activePage + 1 : 0} of{" "}
               {Math.ceil(results.length / PAGE_SIZE)}
             </span>
             <button
               className="button secondary"
-              disabled={(page + 1) * PAGE_SIZE >= results.length}
-              onClick={() => setPage(page + 1)}
+              disabled={(activePage + 1) * PAGE_SIZE >= results.length}
+              onClick={() => goPage(activePage + 1)}
             >
               Next
             </button>
@@ -269,6 +467,12 @@ export function TrackerBrowser({ embedded = false }: { embedded?: boolean }) {
               {ref.sheet}, row {ref.row}
               {ref.trackerStatus ? ` · Status: ${ref.trackerStatus}` : ""}
               {ref.recordedFit ? ` · Recorded fit: ${ref.recordedFit}` : ""}
+              {ref.notes && (
+                <>
+                  <br />
+                  Recorded note: {ref.notes}
+                </>
+              )}
             </p>
           ))}
           <p>

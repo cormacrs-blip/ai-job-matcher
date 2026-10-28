@@ -3,6 +3,9 @@ export type TrackerReference = {
   row: number;
   trackerStatus?: string;
   recordedFit?: string;
+  location?: string;
+  salary?: string;
+  notes?: string;
 };
 export type TrackerDescription = {
   text: string;
@@ -58,6 +61,12 @@ export function readTrackerDataset(text: string): TrackerDataset {
           typeof r !== "object" ||
           typeof (r as TrackerReference).sheet !== "string" ||
           typeof (r as TrackerReference).row !== "number" ||
+          ((r as TrackerReference).location !== undefined &&
+            typeof (r as TrackerReference).location !== "string") ||
+          ((r as TrackerReference).salary !== undefined &&
+            typeof (r as TrackerReference).salary !== "string") ||
+          ((r as TrackerReference).notes !== undefined &&
+            typeof (r as TrackerReference).notes !== "string") ||
           ((r as TrackerReference).trackerStatus !== undefined &&
             typeof (r as TrackerReference).trackerStatus !== "string") ||
           ((r as TrackerReference).recordedFit !== undefined &&

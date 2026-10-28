@@ -26,7 +26,7 @@ function workbook() {
   ]);
   sheet.G2 = {
     t: "s",
-    v: "",
+    v: "Strong requirements discovery evidence; review the central work.",
     c: [
       {
         a: "Tracker",
@@ -67,6 +67,9 @@ describe("direct spreadsheet import", () => {
       "Applied",
       "Dismissed",
     ]);
+    expect(result.jobs[0].references[0].notes).toBe(
+      "Strong requirements discovery evidence; review the central work.",
+    );
     expect(result.jobs[0].descriptions[0].text).toContain("Responsibilities");
     expect(result.jobs[0].descriptions[0].truncated).toBe(true);
     expect(result.jobs[1].fetchStatus).toBe("no_url");

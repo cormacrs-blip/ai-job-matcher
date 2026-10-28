@@ -448,3 +448,112 @@ test("imports an Excel tracker directly without uploading it", async ({
   );
   expect(posts).toBe(0);
 });
+
+test("tracker jobs use the dashboard preferences, saved view and historical ratings", async ({
+  page,
+}) => {
+  const data = {
+    format: "align-tracker-v1",
+    generatedAt: "2026-10-27T00:00:00Z",
+    jobs: [
+      {
+        id: "a",
+        title: "Digital Business Analyst",
+        company: "First",
+        location: "Vancouver, remote",
+        url: "",
+        fetchStatus: "not_checked",
+        descriptions: [],
+        references: [
+          {
+            sheet: "BC",
+            row: 2,
+            location: "Vancouver, remote",
+            salary: "CAD $80,000–$100,000 per year",
+            recordedFit: "Fit",
+          },
+        ],
+      },
+      {
+        id: "b",
+        title: "Business Analyst",
+        company: "Second",
+        location: "Toronto, hybrid",
+        url: "",
+        fetchStatus: "not_checked",
+        descriptions: [],
+        references: [
+          {
+            sheet: "ON",
+            row: 2,
+            location: "Toronto, hybrid",
+            salary: "CAD $70,000–$90,000 per year",
+            recordedFit: "Consider",
+          },
+        ],
+      },
+      {
+        id: "c",
+        title: "Business Analyst",
+        company: "Third",
+        location: "Vancouver",
+        url: "",
+        fetchStatus: "not_checked",
+        descriptions: [],
+        references: [
+          {
+            sheet: "BC",
+            row: 3,
+            location: "Vancouver",
+            recordedFit: "Investigate",
+          },
+        ],
+      },
+    ],
+  };
+  await page.goto("/dashboard");
+  await expect(
+    page.getByRole("heading", { name: "Your resume" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Role or job title")).toBeVisible();
+  await page
+    .getByLabel("Choose your tracker spreadsheet or recovered Align file")
+    .setInputFiles({
+      name: "tracker.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(data)),
+    });
+  await expect(page.locator(".tracker-card")).toHaveCount(3);
+  await page.getByLabel("Role or job title").fill("business analyst");
+  await page.getByLabel("Location", { exact: true }).fill("Vancouver");
+  await expect(page.locator(".tracker-card")).toHaveCount(2);
+  await page.getByRole("checkbox", { name: "Remote", exact: true }).check();
+  await expect(page.locator(".tracker-card")).toHaveCount(2);
+  await page
+    .getByRole("checkbox", {
+      name: "Include unknown work arrangement or salary",
+    })
+    .uncheck();
+  await expect(page.locator(".tracker-card")).toHaveCount(1);
+  await expect(page.locator(".tracker-card")).toContainText("First");
+  await page
+    .getByRole("checkbox", {
+      name: "Include unknown work arrangement or salary",
+    })
+    .check();
+  await page.getByLabel("Minimum annual salary").fill("110000");
+  await expect(page.locator(".tracker-card")).toHaveCount(1);
+  await expect(page.locator(".tracker-card")).toContainText("Third");
+  await page.getByRole("button", { name: "Reset preferences" }).click();
+  await page
+    .getByRole("button", { name: "Save Digital Business Analyst", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Saved 1", exact: true }).click();
+  await expect(page.locator(".tracker-card")).toHaveCount(1);
+  await expect(page.locator(".tracker-card")).toContainText("Recorded: Fit");
+  await page.getByLabel("Recorded fit").selectOption("Consider");
+  await expect(page.locator(".tracker-card")).toHaveCount(0);
+  await page.getByLabel("Recorded fit").selectOption("All recorded ratings");
+  await page.getByRole("button", { name: "All opportunities 3" }).click();
+  await expect(page.locator(".tracker-card")).toHaveCount(3);
+});
