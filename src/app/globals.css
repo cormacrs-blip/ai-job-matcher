@@ -1796,3 +1796,65 @@ input::placeholder {
 .dashboard-grid [hidden] {
   display: none !important;
 }
+.real-review {
+  margin: 24px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f5f7f0;
+}
+.real-review p {
+  margin: 12px 0;
+}
+.real-review fieldset {
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+}
+.real-review legend {
+  font-weight: 600;
+}
+.review-criteria {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.review-criteria label,
+.review-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.review-criteria input,
+.review-check input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--green);
+}
+.real-review select {
+  display: block;
+  margin: 10px 0 16px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+  max-width: 100%;
+}
+.real-assessment {
+  background: white;
+  padding: 16px;
+  margin-top: 18px;
+  border-radius: 6px;
+}
+.real-assessment ul {
+  padding-left: 20px;
+}
+@media (max-width: 700px) {
+  .review-criteria {
+    grid-template-columns: 1fr;
+  }
+}

@@ -117,7 +117,7 @@ export function evaluateRole(
   if (job.requiresFrench && profile.french === "No")
     return result(
       "Weak Fit",
-      "Confirmed gate: this fictional role requires professional French and the reviewed profile explicitly states this is not met.",
+      "Confirmed gate: this role requires professional French and the reviewed profile explicitly states this is not met.",
     );
   const substantialGaps = rows.filter(
     (row) => row.level === "Limited" || row.level === "No evidence",

@@ -27,6 +27,7 @@ export type TrackerDataset = {
   format: "align-tracker-v1";
   generatedAt: string;
   jobs: TrackerJob[];
+  saved?: string[];
 };
 export function readTrackerDataset(text: string): TrackerDataset {
   const data: unknown = JSON.parse(text);
@@ -40,6 +41,13 @@ export function readTrackerDataset(text: string): TrackerDataset {
     root.jobs.length > 20000
   )
     throw new Error("This is not a supported Align tracker file.");
+  if (
+    root.saved !== undefined &&
+    (!Array.isArray(root.saved) ||
+      root.saved.some((value: unknown) => typeof value !== "string") ||
+      root.saved.length > 20000)
+  )
+    throw new Error("The tracker file contains an invalid saved-jobs list.");
   for (const job of root.jobs) {
     if (
       !job ||

@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { DatabaseSync } from "node:sqlite";
+test.beforeEach(() => {
+  const dir = process.env.ALIGN_E2E_DATA_DIR;
+  const marker = process.env.ALIGN_E2E_MARKER;
+  if (
+    !dir ||
+    !marker ||
+    path.dirname(dir) !== tmpdir() ||
+    !/^align-playwright-[A-Za-z0-9]+$/.test(path.basename(dir)) ||
+    readFileSync(path.join(dir, ".align-test-marker"), "utf8") !== marker
+  )
+    throw new Error("Refusing to modify a non-test database.");
+  const dbPath = path.join(dir, "tracker.sqlite");
+  if (existsSync(dbPath)) {
+    const db = new DatabaseSync(dbPath);
+    db.exec("DELETE FROM jobs");
+    db.close();
+  }
+});
 test("responsive navigation, multi-select filters, saved jobs and role details", async ({
   page,
 }) => {
@@ -267,7 +288,7 @@ test("pasted resume stays local and quoted limitations remain visible", async ({
   ).toBeEmpty();
 });
 
-test("imports real-job tracker data locally and keeps historical statuses and sources clear", async ({
+test("imports and saves tracker data while keeping historical statuses and sources clear", async ({
   page,
 }) => {
   const fake = {
@@ -313,6 +334,9 @@ test("imports real-job tracker data locally and keeps historical statuses and so
   await expect(
     page.getByRole("button", { name: "Your tracker jobs" }),
   ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
+  ).toBeEnabled();
   await page
     .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
@@ -340,12 +364,12 @@ test("imports real-job tracker data locally and keeps historical statuses and so
   await expect(page.getByText("No jobs match these filters.")).toBeVisible();
   await page.getByLabel("Only jobs with recovered text").uncheck();
   await expect(page.locator(".tracker-card")).toHaveCount(1);
-  expect(trackerPosts).toBe(0);
-  await page.getByRole("button", { name: "Clear imported data" }).click();
-  await expect(page.locator(".tracker-card")).toHaveCount(0);
+  expect(trackerPosts).toBe(1);
+  await page.reload();
+  await expect(page.getByRole("status")).toContainText("2 entries");
 });
 
-test("imports a compressed tracker file without sending its contents to the server", async ({
+test("imports a compressed tracker file and saves its records", async ({
   page,
 }) => {
   const { gzipSync } = await import("node:zlib");
@@ -370,6 +394,9 @@ test("imports a compressed tracker file without sending its contents to the serv
     if (r.method() === "POST") posts++;
   });
   await page.goto("/tracker");
+  await expect(
+    page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
+  ).toBeEnabled();
   await page
     .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
@@ -378,12 +405,10 @@ test("imports a compressed tracker file without sending its contents to the serv
       buffer: gzipSync(JSON.stringify(data)),
     });
   await expect(page.getByRole("status")).toContainText("1 entries");
-  expect(posts).toBe(0);
+  expect(posts).toBe(1);
 });
 
-test("imports an Excel tracker directly without uploading it", async ({
-  page,
-}) => {
+test("imports an Excel tracker and saves its records", async ({ page }) => {
   const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet([
@@ -429,6 +454,9 @@ test("imports an Excel tracker directly without uploading it", async ({
     if (r.method() === "POST") posts++;
   });
   await page.goto("/tracker");
+  await expect(
+    page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
+  ).toBeEnabled();
   await page
     .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
@@ -446,7 +474,7 @@ test("imports an Excel tracker directly without uploading it", async ({
   await expect(page.getByRole("dialog")).toContainText(
     "Incomplete description.",
   );
-  expect(posts).toBe(0);
+  expect(posts).toBe(1);
 });
 
 test("tracker jobs use the dashboard preferences, saved view and historical ratings", async ({
@@ -516,6 +544,9 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
     page.getByRole("heading", { name: "Your resume" }),
   ).toBeVisible();
   await expect(page.getByLabel("Role or job title")).toBeVisible();
+  await expect(
+    page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
+  ).toBeEnabled();
   await page
     .getByLabel("Choose your tracker spreadsheet or recovered Align file")
     .setInputFiles({
@@ -556,4 +587,149 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
   await page.getByLabel("Recorded fit").selectOption("All recorded ratings");
   await page.getByRole("button", { name: "All opportunities 3" }).click();
   await expect(page.locator(".tracker-card")).toHaveCount(3);
+});
+
+test("retains jobs and bookmarks after reload, merges later imports, and provides a backup", async ({
+  page,
+}) => {
+  const item = (id: string, title: string) => ({
+    id,
+    title,
+    company: "Example",
+    location: "Vancouver",
+    url: `https://example.org/${id}`,
+    references: [{ sheet: "BC", row: 2 }],
+    fetchStatus: "not_checked",
+    descriptions: [],
+  });
+  const data = (items: ReturnType<typeof item>[]) =>
+    Buffer.from(
+      JSON.stringify({
+        format: "align-tracker-v1",
+        generatedAt: "2026-10-27T00:00:00Z",
+        jobs: items,
+      }),
+    );
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({
+    name: "first.json",
+    mimeType: "application/json",
+    buffer: data([item("1", "Analyst")]),
+  });
+  await expect(page.getByRole("status")).toContainText("1 entries");
+  await page.getByRole("button", { name: "Save Analyst", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Unsave Analyst", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("status")).toContainText("1 entries");
+  await expect(
+    page.getByRole("button", { name: "Unsave Analyst", exact: true }),
+  ).toBeVisible();
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({
+    name: "later.json",
+    mimeType: "application/json",
+    buffer: data([item("2", "Project Manager")]),
+  });
+  await expect(page.locator(".tracker-count")).toContainText("2 entries");
+  await expect(
+    page.getByRole("button", { name: "Unsave Analyst", exact: true }),
+  ).toBeVisible();
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download jobs backup" }).click();
+  expect((await downloaded).suggestedFilename()).toBe("align-saved-jobs.json");
+});
+
+test("evaluates a real job using reviewed resume evidence and does not guess unresolved details", async ({
+  page,
+}) => {
+  const fake = {
+    format: "align-tracker-v1",
+    generatedAt: "2026-10-27T00:00:00Z",
+    jobs: [
+      {
+        id: "1",
+        title: "Digital Analyst",
+        company: "Example",
+        location: "Vancouver",
+        url: "https://example.org/1",
+        references: [{ sheet: "BC", row: 2, recordedFit: "Consider" }],
+        fetchStatus: "html",
+        descriptions: [
+          {
+            text: "Fictional complete description: lead requirements, process improvement and acceptance testing.",
+            source: "test",
+            truncated: false,
+          },
+        ],
+      },
+    ],
+  };
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({
+    name: "tracker.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(fake)),
+  });
+  await expect(page.getByRole("status")).toContainText("1 entries");
+  await page
+    .getByLabel("Choose resume PDF or DOCX")
+    .setInputFiles(path.resolve("public/sample-resumes/business-analyst.pdf"));
+  await page.getByRole("button", { name: "Read resume", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Use reviewed resume" }),
+  ).toBeVisible({ timeout: 30000 });
+  await page.getByRole("button", { name: "Use reviewed resume" }).click();
+  await page.getByRole("button", { name: "View job and sources" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Evaluate this job" }).click();
+  await expect(dialog.locator(".real-assessment")).toContainText("Investigate");
+  await dialog
+    .getByRole("checkbox", { name: "Requirements discovery" })
+    .check();
+  await dialog.getByRole("checkbox", { name: "Process improvement" }).check();
+  await dialog
+    .getByRole("checkbox", { name: "User acceptance testing" })
+    .check();
+  await dialog
+    .getByRole("checkbox", { name: /I have reviewed the complete/ })
+    .check();
+  await dialog
+    .getByRole("checkbox", { name: /I confirmed the original posting/ })
+    .check();
+  await dialog.getByLabel("Are the other mandatory requirements met?").selectOption("met");
+  await dialog
+    .getByLabel("Does this job require professional French?")
+    .selectOption("not-required");
+  await dialog.getByRole("button", { name: "Evaluate this job" }).click();
+  await expect(dialog.locator(".real-assessment")).toContainText("Fit");
+  await expect(dialog.locator(".real-assessment")).toContainText(
+    "Led discovery workshops",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".tracker-card")).toContainText("New: Fit");
+  await page.getByRole("button", { name: "View job and sources" }).click();
+  await page
+    .getByRole("dialog")
+    .getByLabel("Does this job require professional French?")
+    .selectOption("unknown");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".tracker-card")).not.toContainText("New: Fit");
+});
+
+test("rejects a cross-site tracker import", async ({ request }) => {
+  const result = await request.post("/api/tracker", {
+    headers: { Origin: "https://unrelated.example" },
+    data: { format: "align-tracker-v1", generatedAt: "2026-01-01", jobs: [] },
+  });
+  expect(result.status()).toBe(403);
 });

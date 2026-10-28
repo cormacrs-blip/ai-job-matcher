@@ -76,17 +76,17 @@ export function Dashboard() {
         <p>
           <strong>Evidence, not percentages.</strong> Import your tracker to
           explore real jobs. Sample jobs demonstrate a limited rules-based
-          evaluation; imported jobs retain their historical tracker assessments
-          and are not newly evaluated.
+          evaluation; review an imported job’s details to evaluate it against
+          your resume.
         </p>
       </div>
       <div className="dashboard-grid">
         <aside className="sidebar">
-          <ResumeWorkbench onEvaluate={setProfile} />
+          <ResumeWorkbench onEvaluate={setProfile} target={jobSource} />
           {jobSource === "tracker" && (
             <p className="small muted">
-              Resume evaluation currently applies to sample jobs. Tracker
-              ratings are historical.
+              Use your reviewed resume to evaluate a real job from its details.
+              Tracker ratings are historical.
             </p>
           )}
           <section className="panel preferences">
@@ -195,7 +195,11 @@ export function Dashboard() {
             </button>
           </div>
           <div hidden={jobSource !== "tracker"}>
-            <TrackerBrowser embedded preferences={preferences} />
+            <TrackerBrowser
+              embedded
+              preferences={preferences}
+              profile={profile}
+            />
           </div>
           {jobSource === "sample" && (
             <>

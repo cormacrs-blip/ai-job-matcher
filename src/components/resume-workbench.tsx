@@ -12,8 +12,10 @@ import {
 import { suggestEvidence } from "@/lib/matching/suggestions";
 export function ResumeWorkbench({
   onEvaluate,
+  target = "sample",
 }: {
   onEvaluate: (profile: Profile | null) => void;
+  target?: "sample" | "tracker";
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -363,7 +365,9 @@ export function ResumeWorkbench({
             disabled={!!unsupported}
             onClick={() => onEvaluate(profile)}
           >
-            Evaluate sample jobs
+            {target === "tracker"
+              ? "Use reviewed resume"
+              : "Evaluate sample jobs"}
           </button>
         </div>
       )}

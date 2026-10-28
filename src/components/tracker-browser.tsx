@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { Bookmark, MapPin, Sparkles } from "lucide-react";
 import type { Preferences } from "@/lib/jobs";
+import type { Profile, Assessment } from "@/lib/matching/evaluator";
+import { RealJobEvaluator } from "./real-job-evaluator";
+import type { RealJobReview } from "@/lib/matching/real-job";
 import {
   matchesTrackerPreferences,
   recordedRatings,
@@ -18,13 +21,19 @@ const PAGE_SIZE = 25;
 export function TrackerBrowser({
   embedded = false,
   preferences,
+  profile = null,
 }: {
   embedded?: boolean;
   preferences?: Preferences;
+  profile?: Profile | null;
 }) {
   const Container = embedded ? "div" : "main";
   const [dataset, setDataset] = useState<TrackerDataset | null>(null);
   const [error, setError] = useState("");
+  const [loadingStore, setLoadingStore] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  const [savingIds, setSavingIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [onlyText, setOnlyText] = useState(false);
   const [includeUnknown, setIncludeUnknown] = useState(true);
@@ -33,11 +42,100 @@ export function TrackerBrowser({
   const [saved, setSaved] = useState<string[]>([]);
   const [onlySaved, setOnlySaved] = useState(false);
   const [rating, setRating] = useState("All recorded ratings");
+  const [assessments, setAssessments] = useState<
+    Record<
+      string,
+      { profile: Profile; assessment: Assessment | null; review: RealJobReview }
+    >
+  >({});
   const dialog = useRef<HTMLDialogElement>(null);
   const readerSequence = useRef(0);
   useEffect(() => {
     if (selected) dialog.current?.showModal();
   }, [selected]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/tracker", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load your saved jobs.");
+        return response.json();
+      })
+      .then((data) => {
+        const validated = readTrackerDataset(JSON.stringify(data));
+        setDataset(validated);
+        setSaved(Array.isArray(data.saved) ? data.saved : []);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load saved jobs.",
+          );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingStore(false);
+      });
+    return () => controller.abort();
+  }, []);
+  async function persistImport(data: TrackerDataset) {
+    const response = await fetch("/api/tracker", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(result.error || "Unable to save the imported jobs.");
+    setDataset(readTrackerDataset(JSON.stringify(result)));
+    setSaved(result.saved || []);
+    setImportMessage(
+      `Imported ${result.summary.added} new jobs and updated ${result.summary.updated}. Your previous jobs are still saved.`,
+    );
+    setOnlySaved(false);
+    setRating("All recorded ratings");
+    setQuery("");
+    setOnlyText(false);
+    setPage(0);
+  }
+  function downloadBackup() {
+    if (!dataset) return;
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify({ ...dataset, saved })], {
+        type: "application/json",
+      }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "align-saved-jobs.json";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function toggleSaved(job: TrackerJob) {
+    if (savingIds.includes(job.id)) return;
+    const newValue = !saved.includes(job.id);
+    setSavingIds((ids) => [...ids, job.id]);
+    setError("");
+    try {
+      const response = await fetch("/api/tracker", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: job.id, saved: newValue }),
+      });
+      if (!response.ok)
+        throw new Error("Unable to save this bookmark. Please try again.");
+      setSaved((ids) =>
+        newValue ? [...ids, job.id] : ids.filter((id) => id !== job.id),
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Unable to save this bookmark.",
+      );
+    } finally {
+      setSavingIds((ids) => ids.filter((id) => id !== job.id));
+    }
+  }
+
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
     return (dataset?.jobs || []).filter(
@@ -88,10 +186,12 @@ export function TrackerBrowser({
     if (!file) return;
     const current = ++readerSequence.current;
     setError("");
+    setImportMessage("");
     if (file.size > 50 * 1024 * 1024) {
       setError("The tracker file exceeds the 50 MB import limit.");
       return;
     }
+    setImporting(true);
     try {
       if (file.name.toLowerCase().endsWith(".xlsx")) {
         if (file.size > 10 * 1024 * 1024)
@@ -100,13 +200,7 @@ export function TrackerBrowser({
           await import("@/lib/tracker-spreadsheet");
         const data = await readTrackerSpreadsheet(await file.arrayBuffer());
         if (current !== readerSequence.current) return;
-        setDataset(data);
-        setSaved([]);
-        setOnlySaved(false);
-        setRating("All recorded ratings");
-        setQuery("");
-        setOnlyText(false);
-        setPage(0);
+        await persistImport(data);
         return;
       }
       let text: string;
@@ -133,16 +227,12 @@ export function TrackerBrowser({
       } else text = await file.text();
       const data = readTrackerDataset(text);
       if (current !== readerSequence.current) return;
-      setDataset(data);
-      setSaved([]);
-      setOnlySaved(false);
-      setRating("All recorded ratings");
-      setQuery("");
-      setOnlyText(false);
-      setPage(0);
+      await persistImport(data);
     } catch (e) {
       if (current === readerSequence.current)
         setError(e instanceof Error ? e.message : "Unable to read that file.");
+    } finally {
+      if (current === readerSequence.current) setImporting(false);
     }
   }
   return (
@@ -161,10 +251,11 @@ export function TrackerBrowser({
       )}
       <div className="dashboard-disclaimer">
         <p>
-          <strong>Private browser import.</strong> Your file is read in this
-          browser, not uploaded to Align or committed to GitHub. Closing or
-          refreshing this tab clears it. Availability, completeness, and older
-          tracker assessments have not been reverified.
+          <strong>Saved in your Codespace.</strong> Imported jobs and bookmarks
+          are stored on this workspace’s disk and return when you reopen the
+          app. Keep the Codespace port private: anyone with access to this app
+          can see the saved jobs. The original spreadsheet and resume files are
+          not saved. Vacancy status and historical ratings are not reverified.
         </p>
       </div>
       <section className="panel tracker-upload">
@@ -175,6 +266,7 @@ export function TrackerBrowser({
           id="tracker-file"
           type="file"
           accept=".xlsx,.json,.gz,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json,application/gzip"
+          disabled={loadingStore || importing}
           onChange={(event) => {
             void load(event.target.files?.[0]);
             event.target.value = "";
@@ -182,33 +274,26 @@ export function TrackerBrowser({
         />
         <p className="small muted">
           Select your original .xlsx spreadsheet or a recovered JSON file. The
-          spreadsheet is read in this browser and is not modified. This import
-          includes only text already saved inside the spreadsheet; it does not
-          fetch job websites.
+          spreadsheet is read in this browser and is not modified. Its job
+          records are sent to this app and saved in your Codespace. Later
+          imports add or update records without removing existing jobs. No job
+          websites are fetched.
         </p>
         {error && (
           <p className="error" role="alert">
             {error}
           </p>
         )}
-        {dataset && (
-          <button
-            className="button secondary"
-            onClick={() => {
-              readerSequence.current++;
-              setDataset(null);
-              setSaved([]);
-              setOnlySaved(false);
-              setRating("All recorded ratings");
-              setSelected(null);
-              setError("");
-            }}
-          >
-            Clear imported data
+        {dataset && dataset.jobs.length > 0 && (
+          <button className="button secondary" onClick={downloadBackup}>
+            Download jobs backup
           </button>
         )}
+        {loadingStore && <p role="status">Loading saved jobs…</p>}
+        {importing && <p role="status">Importing and saving jobs…</p>}
+        {importMessage && <p aria-live="polite">{importMessage}</p>}
       </section>
-      {dataset && (
+      {dataset && dataset.jobs.length > 0 && (
         <section className="tracker-results">
           <div className="results-toolbar">
             <div className="result-tabs">
@@ -330,13 +415,8 @@ export function TrackerBrowser({
                       className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
                       aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
                       aria-pressed={saved.includes(job.id)}
-                      onClick={() =>
-                        setSaved(
-                          saved.includes(job.id)
-                            ? saved.filter((id) => id !== job.id)
-                            : [...saved, job.id],
-                        )
-                      }
+                      disabled={savingIds.includes(job.id)}
+                      onClick={() => void toggleSaved(job)}
                     >
                       <Bookmark
                         size={19}
@@ -367,16 +447,24 @@ export function TrackerBrowser({
                     <div>
                       <strong>
                         <Sparkles size={16} />
-                        {recordedRatings(job).length === 1
-                          ? `Recorded: ${recordedRatings(job)[0]}`
-                          : recordedRatings(job).length > 1
-                            ? "Conflicting recorded ratings"
-                            : "Not evaluated"}
+                        {assessments[job.id]?.profile === profile &&
+                        profile &&
+                        assessments[job.id]?.assessment
+                          ? `New: ${assessments[job.id].assessment!.status}`
+                          : recordedRatings(job).length === 1
+                            ? `Recorded: ${recordedRatings(job)[0]}`
+                            : recordedRatings(job).length > 1
+                              ? "Conflicting recorded ratings"
+                              : "Not evaluated"}
                       </strong>
                       <p>
-                        {recordedRatings(job).length
-                          ? "Historical tracker rating; not a new resume evaluation."
-                          : "No historical fit rating recorded."}
+                        {assessments[job.id]?.profile === profile &&
+                        profile &&
+                        assessments[job.id]?.assessment
+                          ? assessments[job.id].assessment!.reason
+                          : recordedRatings(job).length
+                            ? "Historical tracker rating; not a new resume evaluation."
+                            : "No historical fit rating recorded."}
                       </p>
                     </div>
                   </div>
@@ -501,6 +589,28 @@ export function TrackerBrowser({
               {selected.fetchStatus.replaceAll("_", " ")}.
             </p>
           )}
+          <RealJobEvaluator
+            key={selected.id}
+            job={selected}
+            profile={profile}
+            initialReview={
+              assessments[selected.id]?.profile === profile
+                ? assessments[selected.id].review
+                : undefined
+            }
+            initialAssessment={
+              assessments[selected.id]?.profile === profile
+                ? assessments[selected.id].assessment
+                : undefined
+            }
+            onAssessment={(assessment, review) => {
+              if (profile)
+                setAssessments((previous) => ({
+                  ...previous,
+                  [selected.id]: { profile, assessment, review },
+                }));
+            }}
+          />
           <button className="button primary" onClick={() => setSelected(null)}>
             Back to jobs
           </button>

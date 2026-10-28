@@ -4,7 +4,7 @@ A responsive portfolio MVP built with Next.js App Router, TypeScript and Tailwin
 
 ## Setup
 
-Use Node.js 22.12+ (validated on Node 24) and npm.
+Use Node.js 22.13+ (validated on Node 24) and npm. The single-user tracker uses Node’s built-in SQLite module.
 
 ```sh
 npm ci
@@ -32,15 +32,17 @@ No model independently interprets an ordinary resume. Suggestions locate vocabul
 
 The original business analyst and incomplete profile downloads contain explicit prototype evidence annotations. They demonstrate prefilled mappings and regression cases. The annotated business analyst produces Fit for Digital Business Analyst, Consider for Product Owner and Senior Business Analyst, Investigate for Digital Project Manager (French eligibility unknown), and Weak Fit for Analytics Engineer. The annotated data engineer fixture is retained under `public/sample-resumes/` for regression tests. All are fictional.
 
-Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names never choose an assessment. Both PDF and DOCX contents are extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Visible sample salaries are annual base CAD amounts. Saved jobs and reviewed evidence are in-memory only and reset when the dashboard unmounts or refreshes.
+Changing a file, removing it, reading it again or editing reviewed evidence clears prior evaluations. Replacing/removing a file or leaving the dashboard cancels the browser’s outstanding read request; this does not guarantee interruption of parsing already underway on the server. Download names never choose an assessment. Both PDF and DOCX contents are extracted. Filters accept any combination of Remote, Hybrid and On-site; none selected means all. Visible sample salaries are annual base CAD amounts. Tracker jobs and bookmarks are saved in the private Codespace. Reviewed resume evidence and new evaluation results remain in memory and reset on refresh.
 
-## Import a recovered job tracker
+## Save and evaluate tracker jobs
 
-Open the dashboard, select **Your tracker jobs**, and choose the original `.xlsx` tracker or an `align-tracker-v1` JSON/JSON.GZ file. The Excel import preserves rows, statuses and relevant cached comments, but it does not retrieve job sites; a previously recovered JSON includes additional text where available. Import is entirely browser-side: the data is not sent to the app server, persisted, or added to the Git repository. It is cleared on refresh or when you choose **Clear imported data**. The file can include private tracker statuses and notes, so keep the file private.
+Open the dashboard and select the original `.xlsx` tracker or an `align-tracker-v1` JSON/JSON.GZ file. The spreadsheet is parsed in the browser, then normalized job records, historical statuses, notes and cached posting text are sent to this app and stored in a SQLite database under `.align-data/` in the Codespace. The spreadsheet file itself is not saved. The database is Git-ignored and is not committed or pushed to GitHub. Refreshing or restarting the app reloads jobs and bookmarks. A later import **merges**, rather than replaces, existing records; exact posting URLs are used as the cross-import identity. Records without URLs remain distinct unless the source row and job identity match. Changed historical statuses are retained as history and may show conflicts. Bookmarks survive subsequent imports.
 
-The Excel parser runs in the browser. The prototype is for trusted user-provided spreadsheets and is not hardened for arbitrary untrusted files. The dashboard’s role, location, work arrangement and minimum annual salary controls also filter tracker jobs. Ambiguous work arrangements and salaries remain visible by default; uncheck **Include unknown work arrangement or salary** to require known values when those filters are active. Salary filtering only interprets explicit CAD annual values; hourly, foreign-currency and ambiguous amounts remain unknown. Saved jobs and recorded-fit filters work for tracker entries in the current tab. Recorded fit labels are historical and are not fresh resume evaluations. The browser groups only identical posting URLs, preserving each source tab, row, tracker status, and past fit rating separately. Records with no URL remain separate and different URLs can represent the same vacancy. Search by company, title or location; filter for records with recovered text; open a record to inspect source text and provenance. Historical tracker decisions are not a fresh fit assessment. A captured page or structured description does not establish completeness, an open vacancy, or a current application link. Pages that disallow automated access, fail or do not yield substantial text remain listed with no recovered text; cached notes can contain excerpts or analysis.
+Use **Download jobs backup** to save a private JSON backup including bookmarks. Import it to restore or merge into another workspace. Codespace disk storage is tied to that workspace and can be lost if the Codespace is deleted or its storage is reset; retain a backup. Data is not encrypted by this app, and this prototype has no authentication. Keep the development port private: anyone with access to the app can access the saved tracker. This is not a multi-user or public-production storage solution.
 
-The tracker browser is separate from the fictional evaluator. Imported postings do not receive a generated status or ranking: evaluation of arbitrary real job descriptions is a future feature. Extraction and review of the user's tracker data are performed outside the repository. Only synthetic tracker fixtures are included in the tests.
+To evaluate an imported job, read and review the resume evidence in the sidebar, click **Use reviewed resume**, then open the job details. Review its description, choose 3–4 defining responsibilities, and confirm the vacancy, language and eligibility information you have actually checked. The rules compare the chosen responsibilities against the reviewed resume evidence. Missing description, vacancy or eligibility information produces **Investigate**. Unknown salary is neutral. The current supported responsibility list and rules are limited; this is a guided human-reviewed comparison, not an automated AI reading or full parity with the work agent. If the role is outside those categories or the description is partial, leave it unresolved. Historical tracker ratings remain historical. Newly reviewed resume evidence and evaluations are held only in the current browser session; they are not persisted or part of the jobs backup.
+
+The spreadsheet import includes only text already in the workbook and does not fetch job sites. A separately recovered JSON can contain additional text. Captures may be incomplete, outdated, or mixed with notes. Current vacancy and descriptions must be verified before applying. The `xlsx` parser runs in the browser and is intended for trusted user-provided files. Role/location filters and multi-select work arrangements operate on tracker data; ambiguous arrangements and non-CAD, hourly or unclear salaries are included by default unless explicitly excluded. Saved bookmarks and historical rating filters work for tracker entries.
 
 ## What the evaluator does—and does not do
 
@@ -67,11 +69,12 @@ Use fictional files in this development prototype. It lacks authentication, rate
 ## Architecture
 
 ```text
-src/app/                       Pages, shared styles, resume extraction API
+src/app/                       Pages, shared styles, resume extraction and tracker APIs
 src/components/dashboard.tsx   Filters, saved roles, evaluation results and details
 src/components/resume-workbench.tsx  File selection, upload, review and evaluation action
 src/lib/jobs.ts                Typed detailed fictional roles and preference filters
 src/lib/matching/              Evidence retrieval, parsing, compensation, reports and category rules
+src/lib/tracker-store/         SQLite merge, bookmarks and backup restoration
 public/sample-resumes/         Annotated and ordinary fictional PDF/DOCX resumes
 scripts/generate_sample_resumes.py  Reproducible fixture generator
 ```
@@ -88,7 +91,7 @@ npm run build
 npm run test:e2e
 ```
 
-Browser tests require a production build and Chromium (`/usr/bin/chromium` by default; override `CHROMIUM_PATH` for your installed browser). Tests cover real PDF/DOCX uploads and text extraction, all four categories, changed outcomes after replacing the resume, missing evidence, file errors, multi-select filters, saved jobs, dialogs and mobile/desktop overflow. Unit tests cover extraction boundaries, explicit/unknown/duplicate evidence, central gaps, competition cues, salary/language gates and preference combinations.
+Browser tests use a fresh temporary SQLite database, never the developer’s tracker, and require a production build and Chromium (`/usr/bin/chromium` by default; override `CHROMIUM_PATH` for your installed browser). Tests cover real PDF/DOCX uploads and text extraction, all four categories, changed outcomes after replacing the resume, missing evidence, file errors, multi-select filters, saved jobs, dialogs and mobile/desktop overflow. Unit tests cover extraction boundaries, explicit/unknown/duplicate evidence, central gaps, competition cues, salary/language gates and preference combinations.
 
 ## Next priorities
 
