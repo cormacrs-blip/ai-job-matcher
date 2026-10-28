@@ -1,5 +1,5 @@
-import { getTrackerStore } from "@/lib/tracker-store/store";
-import { readTrackerDataset } from "@/lib/tracker-import";
+import { getTrackerStore } from "../../../lib/tracker-store/store";
+import { readTrackerDataset } from "../../../lib/tracker-import";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
@@ -7,7 +7,11 @@ function response(data: unknown, status = 200) {
   return Response.json(data, { status, headers });
 }
 function sameOrigin(request: Request) {
-  if (request.headers.get("sec-fetch-site") === "cross-site") return false;
+  const fetchSite = request.headers.get("sec-fetch-site");
+  // Codespaces forwards requests through a proxy whose host may differ from
+  // the browser's origin. Browsers set this header based on the actual URL.
+  if (fetchSite === "same-origin") return true;
+  if (fetchSite && fetchSite !== "none") return false;
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
