@@ -61,6 +61,50 @@ const result = () => ({
   ],
 });
 describe("Codex evaluation boundary", () => {
+  it("evaluates and verifies exact quotations against decoded captured text, not its JSON wrapper", () => {
+    const wrapped = {
+      ...job,
+      descriptions: [
+        {
+          source: "capture",
+          truncated: false,
+          text: JSON.stringify({
+            metadata: "fake responsibility",
+            text: description.replace(
+              "requirements discovery",
+              'requirements\n"discovery"',
+            ),
+          }),
+        },
+      ],
+    };
+    const r = result();
+    r.central[0].jobQuote = 'requirements\n"discovery"';
+    expect(validateEvaluation(r, resume, wrapped).status).toBe("Fit");
+    expect(evaluationPrompt(resume, wrapped)).toContain(
+      'requirements\\n\\"discovery\\"',
+    );
+    r.central[0].jobQuote = "fake responsibility";
+    expect(() => validateEvaluation(r, resume, wrapped)).toThrow(
+      "Unsupported evidence",
+    );
+  });
+  it("does not treat a large JSON wrapper around a short description as a complete posting", () => {
+    const wrapped = {
+      ...job,
+      descriptions: [
+        {
+          source: "capture",
+          truncated: false,
+          text: JSON.stringify({
+            metadata: "filler ".repeat(200),
+            text: "Short job.",
+          }),
+        },
+      ],
+    };
+    expect(insufficient(wrapped)).toBe(true);
+  });
   it("reports recognized failure categories without exposing raw provider output", () => {
     expect(describeCodexFailure("usage limit reached private-token")).toContain(
       "usage or rate limit",

@@ -3,11 +3,18 @@ const mocks = vi.hoisted(() => ({ evaluate: vi.fn(), list: vi.fn() }));
 vi.mock("@/lib/matching/codex", () => ({
   evaluateWithCodex: mocks.evaluate,
   EvaluationFailure: class extends Error {},
+  UnverifiableResponse: class extends Error {},
+  investigation: (reason: string) => ({
+    status: "Investigate",
+    reason,
+    rows: [],
+  }),
 }));
 vi.mock("@/lib/tracker-store/store", () => ({
   getTrackerStore: () => ({ list: mocks.list }),
 }));
 import { POST } from "./route";
+import { UnverifiableResponse } from "@/lib/matching/codex";
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.list.mockReturnValue({ jobs: [{ id: "fictional", descriptions: [] }] });
@@ -87,6 +94,18 @@ it("never fabricates a verdict on Codex failure or logs provider details", async
   const data = await response.json();
   expect(data.assessment).toBeUndefined();
   expect(data.error).not.toContain("secret");
+});
+it("marks unverifiable model output Investigate so the queue can continue", async () => {
+  mocks.evaluate.mockRejectedValue(
+    new UnverifiableResponse("private raw content"),
+  );
+  const response = await POST(
+    request({ id: "fictional", resume: "Fictional" }),
+  );
+  expect(response.status).toBe(200);
+  const data = await response.json();
+  expect(data.assessment.status).toBe("Investigate");
+  expect(data.assessment.reason).not.toContain("private raw content");
 });
 it("rejects oversized input before model invocation", async () => {
   expect(

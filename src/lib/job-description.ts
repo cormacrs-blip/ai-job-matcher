@@ -3,9 +3,9 @@ export type DescriptionBlock =
   | { type: "paragraph"; text: string }
   | { type: "list"; items: string[] };
 
-/** Display formatting only; original stored source and evaluation input are unchanged. */
-export function formatJobDescription(source: string): {
-  blocks: DescriptionBlock[];
+/** Extract a captured JSON text field without modifying the stored source. */
+export function extractJobDescriptionText(source: string): {
+  text: string;
   unwrapped: boolean;
 } {
   let text = source;
@@ -25,6 +25,15 @@ export function formatJobDescription(source: string): {
   } catch {
     // Plain text or malformed JSON remains visible exactly as supplied.
   }
+  return { text, unwrapped };
+}
+
+/** Presentation preserves wording; the original captured source remains accessible. */
+export function formatJobDescription(source: string): {
+  blocks: DescriptionBlock[];
+  unwrapped: boolean;
+} {
+  const { text, unwrapped } = extractJobDescriptionText(source);
   const blocks: DescriptionBlock[] = [];
   let paragraph: string[] = [];
   let bullets: string[] = [];

@@ -1,5 +1,10 @@
 import { getTrackerStore } from "@/lib/tracker-store/store";
-import { evaluateWithCodex, EvaluationFailure } from "@/lib/matching/codex";
+import {
+  evaluateWithCodex,
+  EvaluationFailure,
+  UnverifiableResponse,
+  investigation,
+} from "@/lib/matching/codex";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let busy = false;
@@ -91,6 +96,16 @@ export async function POST(request: Request) {
         { headers },
       );
     } catch (error) {
+      if (error instanceof UnverifiableResponse) {
+        return Response.json(
+          {
+            assessment: investigation(
+              "The model's evidence could not be verified against the source. Review this job manually; no positive or negative fit was inferred.",
+            ),
+          },
+          { headers },
+        );
+      }
       return Response.json(
         {
           error:
