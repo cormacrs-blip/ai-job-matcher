@@ -338,9 +338,18 @@ export async function evaluateWithCodex(
         (e) => e.type === "item.completed" && e.item?.type === "agent_message",
       )?.item?.text;
       return validateEvaluation(JSON.parse(message), resume, job);
-    } catch {
+    } catch (error) {
+      const category =
+        error instanceof Error &&
+        [
+          "Invalid evaluation",
+          "Unsupported compensation",
+          "Unsupported evidence",
+        ].includes(error.message)
+          ? error.message
+          : "Malformed model response";
       throw new UnverifiableResponse(
-        "The model response could not be verified against the source text. No verdict was guessed; retry or review the job manually.",
+        `The model response could not be verified (${category}). No verdict was guessed.`,
       );
     }
   } finally {

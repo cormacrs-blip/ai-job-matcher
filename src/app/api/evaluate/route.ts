@@ -100,8 +100,9 @@ export async function POST(request: Request) {
         return Response.json(
           {
             assessment: investigation(
-              "The model's evidence could not be verified against the source. Review this job manually; no positive or negative fit was inferred.",
+              `The model response could not be verified (${["Invalid evaluation", "Unsupported compensation", "Unsupported evidence", "Malformed model response"].find((category) => error.message === `The model response could not be verified (${category}). No verdict was guessed.`) || "Unknown verification issue"}). No verdict was guessed.`,
             ),
+            verificationIssue: true,
           },
           { headers },
         );

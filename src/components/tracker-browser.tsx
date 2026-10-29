@@ -117,6 +117,17 @@ export function TrackerBrowser({
             total: jobs.length,
             running: i + 1 < jobs.length,
           });
+          if (data.verificationIssue) {
+            setEvaluationError(
+              `${data.assessment.reason} The queue is paused to avoid using more of your allowance.`,
+            );
+            setProgress({
+              done: Object.keys(completed.results).length,
+              total: jobs.length,
+              running: false,
+            });
+            return;
+          }
         } catch (error) {
           if (controller.signal.aborted) return;
           setEvaluationError(
