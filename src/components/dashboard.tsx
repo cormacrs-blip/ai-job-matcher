@@ -5,7 +5,6 @@ import {
   Bookmark,
   MapPin,
   Search,
-  SlidersHorizontal,
   Sparkles,
   X,
 } from "lucide-react";
@@ -68,93 +67,6 @@ export function Dashboard() {
         <aside className="sidebar">
           <ResumeWorkbench onEvaluate={setProfile} target={jobSource} />
           <div id="evaluation-progress" />
-          <section className="panel preferences">
-            <div className="panel-title">
-              <h2>Your preferences</h2>
-              <SlidersHorizontal size={17} />
-            </div>
-            <label htmlFor="role">Role or job title</label>
-            <div className="input-icon">
-              <Search size={16} />
-              <input
-                id="role"
-                placeholder="e.g. Business Analyst"
-                value={preferences.role}
-                onChange={(event) =>
-                  setPreferences({ ...preferences, role: event.target.value })
-                }
-              />
-            </div>
-            <label htmlFor="location">Location</label>
-            <div className="input-icon">
-              <MapPin size={16} />
-              <input
-                id="location"
-                placeholder="City or province"
-                value={preferences.location}
-                onChange={(event) =>
-                  setPreferences({
-                    ...preferences,
-                    location: event.target.value,
-                  })
-                }
-              />
-            </div>
-            <fieldset className="arrangement-options">
-              <legend>Work arrangement</legend>
-              <p className="small muted">
-                Choose any combination. None selected means all arrangements.
-              </p>
-              {workArrangements.map((option) => (
-                <label className="arrangement-option" key={option}>
-                  <input
-                    type="checkbox"
-                    checked={preferences.arrangements.includes(option)}
-                    onChange={(event) => {
-                      setPreferences({
-                        ...preferences,
-                        arrangements: event.target.checked
-                          ? [...preferences.arrangements, option]
-                          : preferences.arrangements.filter(
-                              (item) => item !== option,
-                            ),
-                      });
-                    }}
-                  />
-                  {option}
-                </label>
-              ))}
-            </fieldset>
-            <label htmlFor="salary">
-              Minimum annual salary{" "}
-              <span>
-                {preferences.salary ? salary(preferences.salary) : "Any"}
-              </span>
-            </label>
-            <input
-              id="salary"
-              type="range"
-              min="0"
-              max="150000"
-              step="5000"
-              value={preferences.salary}
-              onChange={(event) =>
-                setPreferences({
-                  ...preferences,
-                  salary: Number(event.target.value),
-                })
-              }
-            />
-            <p className="small muted">
-              CAD annual · Unclear tracker salaries are included by default.
-            </p>
-            <button
-              className="reset-button"
-              onClick={() => setPreferences(defaultPreferences)}
-            >
-              Reset preferences
-            </button>
-          </section>
           <div id="tracker-filters" />
           <div id="tracker-management" />
           <details className="source-options">
@@ -178,6 +90,113 @@ export function Dashboard() {
           </details>
         </aside>
         <section className="results">
+          <div className="quick-filters" aria-label="Job filters">
+            <details className="filter-menu" name="job-filter">
+              <summary>
+                Role{preferences.role ? ` · ${preferences.role}` : ""}
+              </summary>
+              <div className="filter-popover">
+                <label htmlFor="role">Role or job title</label>
+                <input
+                  id="role"
+                  placeholder="e.g. Business Analyst"
+                  value={preferences.role}
+                  onChange={(event) =>
+                    setPreferences({ ...preferences, role: event.target.value })
+                  }
+                />
+              </div>
+            </details>
+            <details className="filter-menu" name="job-filter">
+              <summary>
+                Location
+                {preferences.location ? ` · ${preferences.location}` : ""}
+              </summary>
+              <div className="filter-popover">
+                <label htmlFor="location">Location</label>
+                <input
+                  id="location"
+                  placeholder="City or province"
+                  value={preferences.location}
+                  onChange={(event) =>
+                    setPreferences({
+                      ...preferences,
+                      location: event.target.value,
+                    })
+                  }
+                />
+              </div>
+            </details>
+            <details className="filter-menu" name="job-filter">
+              <summary>
+                Work arrangement
+                {preferences.arrangements.length
+                  ? ` · ${preferences.arrangements.length}`
+                  : ""}
+              </summary>
+              <div className="filter-popover">
+                <fieldset className="arrangement-options">
+                  <legend>Work arrangement</legend>
+                  <p>Choose any combination.</p>
+                  {workArrangements.map((option) => (
+                    <label className="arrangement-option" key={option}>
+                      <input
+                        type="checkbox"
+                        checked={preferences.arrangements.includes(option)}
+                        onChange={(event) =>
+                          setPreferences({
+                            ...preferences,
+                            arrangements: event.target.checked
+                              ? [...preferences.arrangements, option]
+                              : preferences.arrangements.filter(
+                                  (item) => item !== option,
+                                ),
+                          })
+                        }
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
+            </details>
+            <details className="filter-menu" name="job-filter">
+              <summary>
+                Salary
+                {preferences.salary ? ` · ${salary(preferences.salary)}+` : ""}
+              </summary>
+              <div className="filter-popover">
+                <label htmlFor="salary">
+                  Minimum annual salary{" "}
+                  <span>
+                    {preferences.salary ? salary(preferences.salary) : "Any"}
+                  </span>
+                </label>
+                <input
+                  id="salary"
+                  type="range"
+                  min="0"
+                  max="150000"
+                  step="5000"
+                  value={preferences.salary}
+                  onChange={(event) =>
+                    setPreferences({
+                      ...preferences,
+                      salary: Number(event.target.value),
+                    })
+                  }
+                />
+                <p>CAD annual. Unknown salaries are included by default.</p>
+              </div>
+            </details>
+            <button
+              className="reset-button"
+              onClick={() => setPreferences(defaultPreferences)}
+            >
+              Reset preferences
+            </button>
+          </div>
+
           <div hidden={jobSource !== "tracker"}>
             <TrackerBrowser
               embedded

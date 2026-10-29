@@ -329,18 +329,6 @@ export function TrackerBrowser({
     <div className="tracker-filter-panel">
       <div className="tracker-controls">
         <label>
-          Search company, title or location
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
-            placeholder="e.g. Product Manager"
-          />
-        </label>
-        <label>
           Recorded fit{" "}
           <select
             aria-label="Recorded fit"
@@ -487,7 +475,18 @@ export function TrackerBrowser({
                 Saved <span>{saved.length}</span>
               </button>
             </div>
-            <span className="sort-label">Tracker order</span>
+            <label className="job-search">
+              <span className="sr-only">Search company, title or location</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="e.g. Product Manager"
+              />
+            </label>
           </div>
           {embedded &&
           typeof document !== "undefined" &&
@@ -500,114 +499,105 @@ export function TrackerBrowser({
               ? trackerFilters
               : null}
           <p className="tracker-count" role="status">
-            {results.length} entries ·{" "}
-            {dataset.jobs.filter((j) => j.descriptions.length > 0).length} with
-            recovered or cached text · imported{" "}
-            {new Date(dataset.generatedAt).toLocaleDateString()}
+            {results.length} {results.length === 1 ? "job" : "jobs"}
           </p>
           <div className="job-list">
             {results
               .slice(activePage * PAGE_SIZE, (activePage + 1) * PAGE_SIZE)
-              .map((job) => (
-                <article className="job-card tracker-card" key={job.id}>
-                  <div className="job-top">
-                    <span className="company-logo mint">
-                      {job.company.slice(0, 1).toUpperCase()}
-                    </span>
-                    <div className="job-identity">
-                      <span>{job.company}</span>
-                      <h2>
-                        <button onClick={() => setSelected(job)}>
-                          {job.title}
+              .map((job) => {
+                const assessment =
+                  profile && assessments[job.id]?.profile === profile
+                    ? assessments[job.id].assessment
+                    : null;
+                const arrangements = trackerArrangements(job);
+                const arrangement =
+                  arrangements.length > 1
+                    ? "Work arrangement unclear"
+                    : arrangements[0] || "Work arrangement unknown";
+                const salaries = [
+                  ...new Set(
+                    job.references.map((ref) => ref.salary).filter(Boolean),
+                  ),
+                ];
+                const history = recordedRatings(job);
+                return (
+                  <article className="job-card tracker-card" key={job.id}>
+                    <div className="job-card-main">
+                      <div className="job-top">
+                        <span className="company-logo mint">
+                          {job.company.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="job-identity">
+                          <h2>
+                            <button onClick={() => setSelected(job)}>
+                              {job.title}
+                            </button>
+                          </h2>
+                          <span>{job.company || "Company unknown"}</span>
+                        </div>
+                        <button
+                          className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
+                          aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
+                          aria-pressed={saved.includes(job.id)}
+                          disabled={savingIds.includes(job.id)}
+                          onClick={() => void toggleSaved(job)}
+                        >
+                          <Bookmark
+                            size={19}
+                            fill={
+                              saved.includes(job.id) ? "currentColor" : "none"
+                            }
+                          />
                         </button>
-                      </h2>
+                      </div>
+                      <div className="job-meta">
+                        <span>
+                          <MapPin size={16} />
+                          {job.location || "Location unknown"}
+                        </span>
+                        <span>{arrangement}</span>
+                        <span>
+                          {salaries.length === 1
+                            ? salaries[0]
+                            : salaries.length > 1
+                              ? "Salary unclear"
+                              : "Salary unknown"}
+                        </span>
+                      </div>
+                      <div className="job-card-actions">
+                        <button
+                          className="button secondary"
+                          onClick={() => setSelected(job)}
+                        >
+                          View job and sources
+                        </button>
+                        {history.length > 0 && !assessment && (
+                          <span>Historical rating in details</span>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      className={`bookmark ${saved.includes(job.id) ? "is-saved" : ""}`}
-                      aria-label={`${saved.includes(job.id) ? "Unsave" : "Save"} ${job.title}`}
-                      aria-pressed={saved.includes(job.id)}
-                      disabled={savingIds.includes(job.id)}
-                      onClick={() => void toggleSaved(job)}
+                    <div
+                      className={`fit-panel ${assessment ? `fit-${assessment.status.toLowerCase().replaceAll(" ", "-")}` : ""}`}
                     >
-                      <Bookmark
-                        size={19}
-                        fill={saved.includes(job.id) ? "currentColor" : "none"}
-                      />
-                    </button>
-                  </div>
-                  <div className="job-meta">
-                    <span>
-                      <MapPin size={14} />
-                      {job.location || "Location unknown"}
-                    </span>
-                    <span>
-                      {trackerArrangements(job).join(" / ") ||
-                        "Work arrangement unknown"}
-                    </span>
-                    <span>
-                      {[
-                        ...new Set(
-                          job.references
-                            .map((ref) => ref.salary)
-                            .filter(Boolean),
-                        ),
-                      ].join(" / ") || "Salary unknown"}
-                    </span>
-                  </div>
-                  <div className="job-fit">
-                    <div>
+                      <Sparkles size={18} />
                       <strong>
-                        <Sparkles size={16} />
-                        {assessments[job.id]?.profile === profile &&
-                        profile &&
-                        assessments[job.id]?.assessment
-                          ? `New: ${assessments[job.id].assessment!.status}`
+                        {assessment
+                          ? `New: ${assessment.status}`
                           : profile
                             ? "Queued for evaluation"
-                            : recordedRatings(job).length === 1
-                              ? `Recorded: ${recordedRatings(job)[0]}`
-                              : recordedRatings(job).length > 1
-                                ? "Conflicting recorded ratings"
-                                : "Not evaluated"}
+                            : "Not evaluated"}
                       </strong>
                       <p>
-                        {assessments[job.id]?.profile === profile &&
-                        profile &&
-                        assessments[job.id]?.assessment
-                          ? assessments[job.id].assessment!.reason
+                        {assessment
+                          ? assessment.reason
                           : profile
-                            ? "Awaiting Codex evaluation for this resume."
-                            : recordedRatings(job).length
-                              ? "Historical tracker rating; not a new resume evaluation."
-                              : "No historical fit rating recorded."}
+                            ? "Awaiting evaluation for this resume."
+                            : "Upload a resume to evaluate."}
                       </p>
                     </div>
-                  </div>
-                  {job.references.find((ref) => ref.notes)?.notes && (
-                    <p className="tracker-note">
-                      <strong>Recorded note:</strong>{" "}
-                      {job.references
-                        .find((ref) => ref.notes)!
-                        .notes!.slice(0, 300)}
-                      {job.references.find((ref) => ref.notes)!.notes!.length >
-                      300
-                        ? "…"
-                        : ""}
-                    </p>
-                  )}
-                  <p>
-                    {job.descriptions.length
-                      ? `${job.descriptions.length} text source${job.descriptions.length === 1 ? "" : "s"} available — completeness unverified`
-                      : "Full text not recovered"}
-                  </p>
-                  <button
-                    className="button secondary"
-                    onClick={() => setSelected(job)}
-                  >
-                    View job and sources
-                  </button>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
           </div>
           {results.length === 0 && <p>No jobs match these filters.</p>}
           <div className="tracker-pagination">

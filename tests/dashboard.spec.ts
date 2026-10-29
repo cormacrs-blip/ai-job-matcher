@@ -34,7 +34,9 @@ test("responsive navigation, multi-select filters, saved jobs and role details",
   await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await expect(page.locator(".job-card")).toHaveCount(5);
+  await page.locator(".filter-menu").nth(0).locator("summary").click();
   await page.getByLabel("Role or job title").fill("digital business");
+  await page.locator(".filter-menu").nth(0).locator("summary").click();
   await expect(page.locator(".job-card")).toHaveCount(1);
   await page
     .getByRole("button", { name: "Save Digital Business Analyst", exact: true })
@@ -49,11 +51,15 @@ test("responsive navigation, multi-select filters, saved jobs and role details",
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Reset preferences" }).click();
   await page.getByRole("button", { name: "All opportunities 5" }).click();
+  await page.locator(".filter-menu").nth(2).locator("summary").click();
   await page.getByRole("checkbox", { name: "Hybrid", exact: true }).check();
   await expect(page.locator(".job-card")).toHaveCount(1);
   await page.getByRole("checkbox", { name: "On-site", exact: true }).check();
+  await page.locator(".filter-menu").nth(2).locator("summary").click();
   await expect(page.locator(".job-card")).toHaveCount(2);
+  await page.locator(".filter-menu").nth(1).locator("summary").click();
   await page.getByLabel("Location", { exact: true }).fill("nowhere");
+  await page.locator(".filter-menu").nth(1).locator("summary").click();
   await expect(page.getByText("No opportunities here yet.")).toBeVisible();
   await page.getByRole("button", { name: "Show all opportunities" }).click();
   await expect(page.locator(".job-card")).toHaveCount(5);
@@ -182,7 +188,9 @@ test("removing a resume cancels an in-flight read and prevents stale evidence", 
     page.getByRole("button", { name: "Evaluate sample jobs" }),
   ).toHaveCount(0);
   await expect(page.locator(".status-pending")).toHaveCount(5);
-  await expect(page.getByText("Drop your resume here")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Choose a file" }),
+  ).toBeVisible();
 });
 
 for (const extension of ["pdf", "docx"])
@@ -349,12 +357,12 @@ test("imports and saves tracker data while keeping historical statuses and sourc
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(fake)),
     });
-  await expect(page.getByRole("status")).toContainText("2 entries");
+  await expect(page.getByRole("status")).toContainText("2 jobs");
   await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await expect(page.locator(".job-card:visible")).toHaveCount(5);
   await page.getByRole("button", { name: "Your tracker jobs" }).click();
-  await expect(page.getByRole("status")).toContainText("2 entries");
+  await expect(page.getByRole("status")).toContainText("2 jobs");
   await page.getByLabel("Only jobs with recovered text").check();
   await expect(page.locator(".tracker-card")).toHaveCount(1);
   await page.getByRole("button", { name: "View job and sources" }).click();
@@ -372,7 +380,7 @@ test("imports and saves tracker data while keeping historical statuses and sourc
   await expect(page.locator(".tracker-card")).toHaveCount(1);
   expect(trackerPosts).toBe(1);
   await page.reload();
-  await expect(page.getByRole("status")).toContainText("2 entries");
+  await expect(page.getByRole("status")).toContainText("2 jobs");
 });
 
 test("imports a compressed tracker file and saves its records", async ({
@@ -410,7 +418,7 @@ test("imports a compressed tracker file and saves its records", async ({
       mimeType: "application/gzip",
       buffer: gzipSync(JSON.stringify(data)),
     });
-  await expect(page.getByRole("status")).toContainText("1 entries");
+  await expect(page.getByRole("status")).toContainText("1 job");
   expect(posts).toBe(1);
 });
 
@@ -471,10 +479,8 @@ test("imports an Excel tracker and saves its records", async ({ page }) => {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       buffer: data,
     });
-  await expect(page.getByRole("status")).toContainText("1 entries");
-  await expect(page.getByRole("status")).toContainText(
-    "1 with recovered or cached text",
-  );
+  await expect(page.getByRole("status")).toContainText("1 job");
+
   await page.getByRole("button", { name: "View job and sources" }).click();
   await expect(page.getByRole("dialog")).toContainText("Status: Applied");
   await expect(page.getByRole("dialog")).toContainText(
@@ -549,6 +555,7 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
   await expect(
     page.getByRole("heading", { name: "Your resume" }),
   ).toBeVisible();
+  await page.locator(".filter-menu").nth(0).locator("summary").click();
   await expect(page.getByLabel("Role or job title")).toBeVisible();
   await expect(
     page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
@@ -562,9 +569,12 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
     });
   await expect(page.locator(".tracker-card")).toHaveCount(3);
   await page.getByLabel("Role or job title").fill("business analyst");
+  await page.locator(".filter-menu").nth(1).locator("summary").click();
   await page.getByLabel("Location", { exact: true }).fill("Vancouver");
   await expect(page.locator(".tracker-card")).toHaveCount(2);
+  await page.locator(".filter-menu").nth(2).locator("summary").click();
   await page.getByRole("checkbox", { name: "Remote", exact: true }).check();
+  await page.locator(".filter-menu").nth(2).locator("summary").click();
   await expect(page.locator(".tracker-card")).toHaveCount(2);
   await page
     .getByRole("checkbox", {
@@ -578,7 +588,9 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
       name: "Include unknown work arrangement or salary",
     })
     .check();
+  await page.locator(".filter-menu").nth(3).locator("summary").click();
   await page.getByLabel("Minimum annual salary").fill("110000");
+  await page.locator(".filter-menu").nth(3).locator("summary").click();
   await expect(page.locator(".tracker-card")).toHaveCount(1);
   await expect(page.locator(".tracker-card")).toContainText("Third");
   await page.getByRole("button", { name: "Reset preferences" }).click();
@@ -587,7 +599,9 @@ test("tracker jobs use the dashboard preferences, saved view and historical rati
     .click();
   await page.getByRole("button", { name: "Saved 1", exact: true }).click();
   await expect(page.locator(".tracker-card")).toHaveCount(1);
-  await expect(page.locator(".tracker-card")).toContainText("Recorded: Fit");
+  await expect(page.locator(".tracker-card")).toContainText(
+    "Historical rating in details",
+  );
   await page.getByLabel("Recorded fit").selectOption("Consider");
   await expect(page.locator(".tracker-card")).toHaveCount(0);
   await page.getByLabel("Recorded fit").selectOption("All recorded ratings");
@@ -626,13 +640,13 @@ test("retains jobs and bookmarks after reload, merges later imports, and provide
     mimeType: "application/json",
     buffer: data([item("1", "Analyst")]),
   });
-  await expect(page.getByRole("status")).toContainText("1 entries");
+  await expect(page.getByRole("status")).toContainText("1 job");
   await page.getByRole("button", { name: "Save Analyst", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Unsave Analyst", exact: true }),
   ).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("status")).toContainText("1 entries");
+  await expect(page.getByRole("status")).toContainText("1 job");
   await expect(
     page.getByRole("button", { name: "Unsave Analyst", exact: true }),
   ).toBeVisible();
@@ -642,7 +656,7 @@ test("retains jobs and bookmarks after reload, merges later imports, and provide
     mimeType: "application/json",
     buffer: data([item("2", "Project Manager")]),
   });
-  await expect(page.locator(".tracker-count")).toContainText("2 entries");
+  await expect(page.locator(".tracker-count")).toContainText("2 jobs");
   await expect(
     page.getByRole("button", { name: "Unsave Analyst", exact: true }),
   ).toBeVisible();
@@ -717,6 +731,54 @@ test("rejects a cross-site tracker import", async ({ request }) => {
     data: { format: "align-tracker-v1", generatedAt: "2026-01-01", jobs: [] },
   });
   expect(result.status()).toBe(403);
+});
+
+test("shows ambiguous arrangements and historical notes without inventing a new fit", async ({
+  page,
+}) => {
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({
+    name: "jobs.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "align-tracker-v1",
+        generatedAt: "2026-10-27T00:00:00Z",
+        jobs: [
+          {
+            id: "unclear",
+            title: "Analyst",
+            company: "Example",
+            location: "Remote / Hybrid / On-site",
+            url: "",
+            fetchStatus: "fixture",
+            descriptions: [],
+            references: [
+              {
+                sheet: "BC",
+                row: 2,
+                recordedFit: "Fit",
+                notes: "Historical private note",
+              },
+            ],
+          },
+        ],
+      }),
+    ),
+  });
+  const card = page.locator(".tracker-card");
+  await expect(card).toContainText("Work arrangement unclear");
+  await expect(card).toContainText("Not evaluated");
+  await expect(card).not.toContainText("Historical private note");
+  await card.getByRole("button", { name: "View job and sources" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Historical private note",
+  );
+  await expect(page.getByRole("dialog")).toContainText("Recorded fit: Fit");
 });
 
 test("shows automatic evaluation progress, stops on errors, and retries without guessing", async ({
