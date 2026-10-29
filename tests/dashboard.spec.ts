@@ -831,6 +831,59 @@ test("separates job card facts while preserving the original details", async ({
   );
 });
 
+test("formats a captured JSON job description and retains the original", async ({
+  page,
+}) => {
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  const capture = JSON.stringify({
+    source: "https://example.org",
+    text: "JOB RESPONSIBILITIES:\n  * Lead workshops.\n  * Improve processes.\nJOB QUALIFICATIONS:\n  * Relevant experience.",
+  });
+  await picker.setInputFiles({
+    name: "jobs.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "align-tracker-v1",
+        generatedAt: "2026-10-27T00:00:00Z",
+        jobs: [
+          {
+            id: "format",
+            title: "Analyst",
+            company: "Example",
+            location: "Canada",
+            url: "",
+            fetchStatus: "fixture",
+            references: [],
+            descriptions: [
+              {
+                source: "Spreadsheet comment",
+                text: capture,
+                truncated: false,
+              },
+            ],
+          },
+        ],
+      }),
+    ),
+  });
+  await page.getByRole("button", { name: "View job and sources" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("heading", { name: "JOB RESPONSIBILITIES" }),
+  ).toBeVisible();
+  await expect(dialog.locator(".description-text li")).toHaveCount(3);
+  await expect(dialog.locator(".description-text")).not.toContainText(
+    '"source"',
+  );
+  await dialog.getByText("View original captured source").click();
+  await expect(dialog.locator(".original-capture pre")).toHaveText(capture);
+});
+
 test("shows automatic evaluation progress, stops on errors, and retries without guessing", async ({
   page,
 }) => {

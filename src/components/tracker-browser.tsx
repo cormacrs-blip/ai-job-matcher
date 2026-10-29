@@ -15,6 +15,7 @@ import {
   recordedRatings,
 } from "@/lib/tracker-filters";
 import { trackerCardDetails } from "@/lib/tracker-card";
+import { formatJobDescription } from "@/lib/job-description";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -712,13 +713,27 @@ export function TrackerBrowser({
                       {desc.truncated ? " · Truncated" : ""}
                     </div>
                     <div className="description-text">
-                      {desc.text
-                        .split(/\n\s*\n/)
-                        .filter(Boolean)
-                        .map((paragraph, index) => (
-                          <p key={index}>{paragraph}</p>
-                        ))}
+                      {formatJobDescription(desc.text).blocks.map(
+                        (block, index) =>
+                          block.type === "heading" ? (
+                            <h4 key={index}>{block.text}</h4>
+                          ) : block.type === "list" ? (
+                            <ul key={index}>
+                              {block.items.map((item, itemIndex) => (
+                                <li key={itemIndex}>{item}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p key={index}>{block.text}</p>
+                          ),
+                      )}
                     </div>
+                    {formatJobDescription(desc.text).unwrapped && (
+                      <details className="original-capture">
+                        <summary>View original captured source</summary>
+                        <pre>{desc.text}</pre>
+                      </details>
+                    )}
                   </section>
                 ))
               ) : (

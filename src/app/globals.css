@@ -2417,3 +2417,49 @@ input::placeholder {
   font-size: 12px;
   font-weight: 600;
 }
+
+.description-text {
+  color: #253b31;
+}
+.tracker-dialog .description-text h4 {
+  margin: 24px 0 8px;
+  color: #152b21;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.tracker-dialog .description-text p {
+  margin: 9px 0 13px;
+  white-space: pre-wrap;
+}
+.tracker-dialog .description-text ul {
+  margin: 8px 0 20px;
+  padding-left: 23px;
+  color: #33483e;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.tracker-dialog .description-text li {
+  margin: 7px 0;
+  padding-left: 3px;
+}
+.original-capture {
+  border-top: 1px solid #e8eeea;
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.original-capture summary {
+  cursor: pointer;
+  color: #285f4c;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tracker-dialog .original-capture pre {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 250px;
+  overflow: auto;
+  color: #50645a;
+  font-size: 12px;
+}
