@@ -1,6 +1,15 @@
 # Align
 
-Align is a private Codespace job tracker with resume-based evaluation.
+Align is an early-stage job discovery and resume evaluation prototype built with Next.js, TypeScript and Tailwind CSS. It imports a job tracker, lets a user filter and save opportunities, and experiments with evidence-based evaluations using four categories: **Fit**, **Consider**, **Investigate** and **Weak Fit**.
+
+This is a portfolio work in progress, designed to run as a private, single-user Codespace. It is not a hosted public product. The automatic evaluation flow is experimental: model outputs can fail source verification or return Investigate, and results need human review. Job listings are imported by the user; the application does not run a live job search.
+
+## What works today
+
+- Import and merge tracker spreadsheets or supported JSON backups; browse, filter and bookmark saved jobs.
+- Extract text from PDF and DOCX resumes and start a Codex-based evaluation of imported jobs.
+- Inspect captured job descriptions, sources and evaluation explanations. Results are temporary and are not verified hiring advice.
+- Use the included fictional sample jobs and resumes to explore and test the interface.
 
 ## Imported-job workflow
 
@@ -13,6 +22,8 @@ Align is a private Codespace job tracker with resume-based evaluation.
 Codex must be installed and signed in with ChatGPT (`codex login status`). The faster option uses `gpt-6-luna`, subject to account and CLI availability; it may be less accurate than the standard Codex default. Choose a model before selecting a resume. If the faster model is unavailable, remove the resume, choose standard, and select it again. The app evaluates one job at a time, and actual speed depends on the model and service. No API-key fallback is provided. Connection and service failures stop with a retry option. Unverifiable model output is marked Investigate and the queue pauses with a diagnostic category; no fit is guessed. Retry skips completed jobs while the same page, resume and job list remain open; results still clear on refresh. Read the [evaluation design and limitations](docs/evaluation-design.md) for the rubric, isolation, privacy and retention boundaries.
 
 ## Local development
+
+Requirements: Node.js 22.13 or later and npm. The evaluation feature also requires a separately installed Codex CLI signed in with a supported ChatGPT account; availability and usage limits depend on the account.
 
 ```sh
 npm ci
