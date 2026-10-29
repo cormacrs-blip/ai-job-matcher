@@ -1,6 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ evaluate: vi.fn(), list: vi.fn() }));
-vi.mock("@/lib/matching/codex", () => ({ evaluateWithCodex: mocks.evaluate }));
+vi.mock("@/lib/matching/codex", () => ({
+  evaluateWithCodex: mocks.evaluate,
+  EvaluationFailure: class extends Error {},
+}));
 vi.mock("@/lib/tracker-store/store", () => ({
   getTrackerStore: () => ({ list: mocks.list }),
 }));

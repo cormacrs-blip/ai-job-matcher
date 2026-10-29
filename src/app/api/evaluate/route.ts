@@ -1,5 +1,5 @@
 import { getTrackerStore } from "@/lib/tracker-store/store";
-import { evaluateWithCodex } from "@/lib/matching/codex";
+import { evaluateWithCodex, EvaluationFailure } from "@/lib/matching/codex";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let busy = false;
@@ -90,11 +90,13 @@ export async function POST(request: Request) {
         },
         { headers },
       );
-    } catch {
+    } catch (error) {
       return Response.json(
         {
           error:
-            "Codex could not complete this evaluation. Check sign-in, connectivity, plan limits or model availability. If the faster model is unavailable, remove your resume, choose the standard model and upload it again. No verdict was guessed.",
+            error instanceof EvaluationFailure
+              ? error.message
+              : "Codex could not complete this evaluation. No verdict was guessed.",
         },
         { status: 503, headers },
       );

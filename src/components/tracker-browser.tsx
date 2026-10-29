@@ -61,16 +61,38 @@ export function TrackerBrowser({
   });
   const [evaluationError, setEvaluationError] = useState("");
   const [retry, setRetry] = useState(0);
+  const completedRef = useRef<{
+    profile: Profile;
+    dataset: TrackerDataset;
+    model: "fast" | "standard";
+    results: Record<string, Assessment>;
+  } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    if (!profile || !dataset) return;
+    if (!profile || !dataset) {
+      completedRef.current = null;
+      return;
+    }
     const resume = profile;
     const jobs = dataset.jobs;
-    async function run() {
+    if (
+      completedRef.current?.profile !== profile ||
+      completedRef.current?.dataset !== dataset ||
+      completedRef.current?.model !== model
+    ) {
+      completedRef.current = { profile, dataset, model, results: {} };
       setAssessments({});
+    }
+    const completed = completedRef.current;
+    async function run() {
       setEvaluationError("");
-      setProgress({ done: 0, total: jobs.length, running: true });
+      setProgress({
+        done: Object.keys(completed.results).length,
+        total: jobs.length,
+        running: true,
+      });
       for (let i = 0; i < jobs.length; i++) {
+        if (completed.results[jobs[i].id]) continue;
         try {
           const response = await fetch("/api/evaluate", {
             method: "POST",
@@ -85,12 +107,13 @@ export function TrackerBrowser({
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || "Evaluation failed.");
           if (controller.signal.aborted) return;
+          completed.results[jobs[i].id] = data.assessment;
           setAssessments((previous) => ({
             ...previous,
             [jobs[i].id]: { profile: resume, assessment: data.assessment },
           }));
           setProgress({
-            done: i + 1,
+            done: Object.keys(completed.results).length,
             total: jobs.length,
             running: i + 1 < jobs.length,
           });
@@ -99,7 +122,11 @@ export function TrackerBrowser({
           setEvaluationError(
             error instanceof Error ? error.message : "Evaluation failed.",
           );
-          setProgress({ done: i, total: jobs.length, running: false });
+          setProgress({
+            done: Object.keys(completed.results).length,
+            total: jobs.length,
+            running: false,
+          });
           return;
         }
       }

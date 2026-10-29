@@ -13,6 +13,31 @@ import {
   type EvidenceKey,
 } from "./evaluator";
 
+export class EvaluationFailure extends Error {}
+export function describeCodexFailure(stderr: string): string {
+  if (
+    /rate.?limit|usage limit|too many requests|quota exceeded|try again at/i.test(
+      stderr,
+    )
+  )
+    return "Codex reported a usage or rate limit. Wait before retrying, or check your Codex usage.";
+  if (
+    /model.{0,80}(?:not found|not available|not supported|does not exist|access)/i.test(
+      stderr,
+    )
+  )
+    return "The selected model may not be available to this account. Choose the standard model before uploading your resume again.";
+  if (
+    /not logged in|unauthorized|authentication failed|login required/i.test(
+      stderr,
+    )
+  )
+    return "Codex reported a sign-in problem in this Codespace.";
+  if (/network|connection|timed? out|dns|failed to connect/i.test(stderr))
+    return "Codex reported a connection problem. Check the connection and retry.";
+  return "Codex stopped without providing a recognized reason. Retry or check your Codex usage and connection.";
+}
+
 export function insufficient(job: TrackerJob) {
   return !job.descriptions.some(
     (d) =>
@@ -261,36 +286,59 @@ export async function evaluateWithCodex(
         { env, stdio: ["pipe", "pipe", "pipe"] },
       );
       let output = "";
+      let stderr = "";
       const stop = () => {
         child.kill("SIGKILL");
         reject(new Error("Evaluation interrupted"));
       };
-      const timer = setTimeout(stop, 120000);
+      const timer = setTimeout(() => {
+        child.kill("SIGKILL");
+        reject(
+          new EvaluationFailure(
+            "The evaluation timed out after two minutes. Retry to continue from the stopped job.",
+          ),
+        );
+      }, 120000);
       signal.addEventListener("abort", stop, { once: true });
       if (signal.aborted) stop();
       child.stdout.on("data", (chunk) => {
         output += chunk.toString();
         if (output.length > 1000000) stop();
       });
-      child.stderr.resume();
+      child.stderr.on("data", (chunk) => {
+        if (stderr.length < 32000)
+          stderr += chunk.toString().slice(0, 32000 - stderr.length);
+      });
       child.stdin.on("error", () => {});
-      child.on("error", () => reject(new Error("Codex is unavailable")));
+      child.on("error", () =>
+        reject(
+          new EvaluationFailure(
+            "Codex could not be started in this Codespace.",
+          ),
+        ),
+      );
       child.on("close", (code) => {
         clearTimeout(timer);
         signal.removeEventListener("abort", stop);
         if (code === 0) resolve(output);
-        else reject(new Error("Codex evaluation failed"));
+        else reject(new EvaluationFailure(describeCodexFailure(stderr)));
       });
       child.stdin.end(evaluationPrompt(resume, job));
     });
-    const events = output
-      .trim()
-      .split("\n")
-      .map((line) => JSON.parse(line));
-    const message = events.findLast(
-      (e) => e.type === "item.completed" && e.item?.type === "agent_message",
-    )?.item?.text;
-    return validateEvaluation(JSON.parse(message), resume, job);
+    try {
+      const events = output
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      const message = events.findLast(
+        (e) => e.type === "item.completed" && e.item?.type === "agent_message",
+      )?.item?.text;
+      return validateEvaluation(JSON.parse(message), resume, job);
+    } catch {
+      throw new EvaluationFailure(
+        "The model response could not be verified against the source text. No verdict was guessed; retry or review the job manually.",
+      );
+    }
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

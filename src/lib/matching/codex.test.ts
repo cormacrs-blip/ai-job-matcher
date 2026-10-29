@@ -4,6 +4,7 @@ import {
   validateEvaluation,
   evaluationPrompt,
   evaluateWithCodex,
+  describeCodexFailure,
 } from "./codex";
 import type { TrackerJob } from "../tracker-import";
 const resume =
@@ -60,6 +61,17 @@ const result = () => ({
   ],
 });
 describe("Codex evaluation boundary", () => {
+  it("reports recognized failure categories without exposing raw provider output", () => {
+    expect(describeCodexFailure("usage limit reached private-token")).toContain(
+      "usage or rate limit",
+    );
+    expect(
+      describeCodexFailure("model gpt-6-luna not available to account"),
+    ).toContain("model may not be available");
+    expect(
+      describeCodexFailure("unrecognized sensitive content"),
+    ).not.toContain("sensitive");
+  });
   it("uses existing four-label decision rules", () => {
     expect(validateEvaluation(result(), resume, job).status).toBe("Fit");
     const r = result();

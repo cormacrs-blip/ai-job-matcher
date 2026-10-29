@@ -963,3 +963,69 @@ test("shows automatic evaluation progress, stops on errors, and retries without 
     "New: Consider",
   );
 });
+
+test("retry resumes at the failed job without repeating completed evaluations", async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  let shouldFail = true;
+  await page.route("**/api/evaluate", async (route) => {
+    const { id } = route.request().postDataJSON();
+    calls.push(id);
+    if (id.endsWith("second") && shouldFail)
+      return route.fulfill({
+        status: 503,
+        json: { error: "Temporary fictional error" },
+      });
+    return route.fulfill({
+      json: {
+        assessment: {
+          status: "Consider",
+          reason: "Fictional assessment",
+          rows: [],
+        },
+      },
+    });
+  });
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  const jobs = ["first", "second"].map((id) => ({
+    id,
+    title: id,
+    company: "Example",
+    location: "",
+    url: `https://example.org/${id}`,
+    references: [],
+    descriptions: [],
+    fetchStatus: "fixture",
+  }));
+  await picker.setInputFiles({
+    name: "jobs.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "align-tracker-v1",
+        generatedAt: "2026-10-27",
+        jobs,
+      }),
+    ),
+  });
+  await expect(page.locator(".tracker-card")).toHaveCount(2);
+  await page.getByText("Or paste resume text", { exact: true }).click();
+  await page
+    .getByLabel("Resume text", { exact: true })
+    .fill("Fictional candidate");
+  await page.getByRole("button", { name: "Use pasted resume" }).click();
+  await expect(page.locator(".evaluation-progress").getByRole("alert")).toContainText(
+    "Temporary fictional error",
+  );
+  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "1");
+  shouldFail = false;
+  await page.getByRole("button", { name: "Retry evaluations" }).click();
+  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "2");
+  expect(calls.filter((id) => id.endsWith("first"))).toHaveLength(1);
+  expect(calls.filter((id) => id.endsWith("second"))).toHaveLength(2);
+});
