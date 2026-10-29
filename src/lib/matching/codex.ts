@@ -204,6 +204,7 @@ export async function evaluateWithCodex(
   resume: string,
   job: TrackerJob,
   signal: AbortSignal,
+  model: "fast" | "standard" = "standard",
 ): Promise<Assessment> {
   if (insufficient(job))
     return investigation(
@@ -221,6 +222,7 @@ export async function evaluateWithCodex(
         "codex",
         [
           "exec",
+          ...(model === "fast" ? ["--model", "gpt-6-luna"] : []),
           "--ignore-user-config",
           "--ignore-rules",
           "--ephemeral",

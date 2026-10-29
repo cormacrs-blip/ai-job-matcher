@@ -24,6 +24,9 @@ export function Dashboard() {
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [jobSource, setJobSource] = useState<"tracker" | "sample">("tracker");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [evaluationModel, setEvaluationModel] = useState<"fast" | "standard">(
+    "fast",
+  );
   const [saved, setSaved] = useState<number[]>([]);
   const [onlySaved, setOnlySaved] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All statuses");
@@ -65,6 +68,26 @@ export function Dashboard() {
       </div>
       <div className="dashboard-grid">
         <aside className="sidebar">
+          {jobSource === "tracker" && (
+            <div className="model-choice">
+              <label htmlFor="evaluation-model">Evaluation model</label>
+              <select
+                id="evaluation-model"
+                value={evaluationModel}
+                disabled={!!profile}
+                onChange={(event) =>
+                  setEvaluationModel(event.target.value as "fast" | "standard")
+                }
+              >
+                <option value="fast">Faster · GPT-6 Luna</option>
+                <option value="standard">Standard · Codex default</option>
+              </select>
+              <p>
+                Faster may be less accurate. Choose before uploading; remove
+                your resume to change.
+              </p>
+            </div>
+          )}
           <ResumeWorkbench onEvaluate={setProfile} target={jobSource} />
           <div id="evaluation-progress" />
           <div id="tracker-filters" />
@@ -202,6 +225,7 @@ export function Dashboard() {
               embedded
               preferences={preferences}
               profile={profile}
+              model={evaluationModel}
             />
           </div>
           {jobSource === "sample" && (

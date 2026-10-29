@@ -370,7 +370,7 @@ test("imports and saves tracker data while keeping historical statuses and sourc
   await expect(dialog).toContainText("Status: Applied");
   await expect(dialog).toContainText("Archived page text");
   await expect(dialog).toContainText(
-    "Completeness and current vacancy status are unverified",
+    "Source text may be incomplete or outdated",
   );
   expect(await page.evaluate(() => "injection" in window)).toBe(false);
   await page.keyboard.press("Escape");
@@ -790,6 +790,7 @@ test("shows automatic evaluation progress, stops on errors, and retries without 
     requests++;
     const payload = route.request().postDataJSON();
     expect(payload.resume).toContain("Fictional");
+    expect(payload.model).toBe("fast");
     await route.fulfill({
       status: fail ? 503 : 200,
       contentType: "application/json",
@@ -807,6 +808,7 @@ test("shows automatic evaluation progress, stops on errors, and retries without 
     });
   });
   await page.goto("/dashboard");
+  await expect(page.getByLabel("Evaluation model")).toHaveValue("fast");
   const picker = page.getByLabel(
     "Choose your tracker spreadsheet or recovered Align file",
   );
@@ -839,6 +841,7 @@ test("shows automatic evaluation progress, stops on errors, and retries without 
     .getByLabel("Resume text", { exact: true })
     .fill("Fictional candidate who improved business processes.");
   await page.getByRole("button", { name: "Use pasted resume" }).click();
+  await expect(page.getByLabel("Evaluation model")).toBeDisabled();
   await expect(
     page
       .getByRole("alert")

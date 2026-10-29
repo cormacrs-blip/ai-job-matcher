@@ -21,10 +21,12 @@ export function TrackerBrowser({
   embedded = false,
   preferences,
   profile = null,
+  model = "standard",
 }: {
   embedded?: boolean;
   preferences?: Preferences;
   profile?: Profile | null;
+  model?: "fast" | "standard";
 }) {
   const Container = embedded ? "div" : "main";
   const [dataset, setDataset] = useState<TrackerDataset | null>(null);
@@ -65,7 +67,11 @@ export function TrackerBrowser({
           const response = await fetch("/api/evaluate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: jobs[i].id, resume: resume.text }),
+            body: JSON.stringify({
+              id: jobs[i].id,
+              resume: resume.text,
+              model,
+            }),
             signal: controller.signal,
           });
           const data = await response.json();
@@ -94,7 +100,7 @@ export function TrackerBrowser({
     }
     void run();
     return () => controller.abort();
-  }, [profile, dataset, retry]);
+  }, [profile, dataset, retry, model]);
   const dialog = useRef<HTMLDialogElement>(null);
   const readerSequence = useRef(0);
   useEffect(() => {
@@ -637,81 +643,107 @@ export function TrackerBrowser({
           >
             ×
           </button>
-          <span className="eyebrow">IMPORTED TRACKER RECORD</span>
-          <h2 id="tracker-title">{selected.title}</h2>
-          <p>
-            {selected.company} · {selected.location || "Location unknown"}
-          </p>
-          {safePostingLink(selected.url) && (
+          <header className="detail-header">
+            <span className="detail-kicker">Job details</span>
+            <h2 id="tracker-title">{selected.title}</h2>
             <p>
+              {selected.company} · {selected.location || "Location unknown"}
+            </p>
+            {safePostingLink(selected.url) && (
               <a
-                className="tracker-link"
+                className="detail-original"
                 href={safePostingLink(selected.url)!}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Open original posting ↗
               </a>
-            </p>
-          )}
-          <h3>Tracker history</h3>
-          {selected.references.map((ref, i) => (
-            <p key={`${ref.sheet}-${ref.row}-${i}`}>
-              {ref.sheet}, row {ref.row}
-              {ref.trackerStatus ? ` · Status: ${ref.trackerStatus}` : ""}
-              {ref.recordedFit ? ` · Recorded fit: ${ref.recordedFit}` : ""}
-              {ref.notes && (
-                <>
-                  <br />
-                  Recorded note: {ref.notes}
-                </>
-              )}
-            </p>
-          ))}
-          <p>
-            These are past tracker records, not fresh evaluations or proof that
-            this vacancy remains open.
-          </p>
-          <h3>Recovered text</h3>
-          {selected.descriptions.length ? (
-            selected.descriptions.map((desc, i) => (
-              <section key={i} className="recovered-source">
-                <p>
-                  <strong>Source:</strong> {desc.source}
-                  {desc.retrievedAt ? ` · ${desc.retrievedAt}` : ""}
-                  {desc.truncated ? " · Truncated" : ""}
-                </p>
-                <p>
-                  Completeness and current vacancy status are unverified. Page
-                  text may contain unrelated material.
-                </p>
-                <pre>{desc.text}</pre>
+            )}
+          </header>
+          <div className="detail-body">
+            {profile && assessments[selected.id]?.profile === profile && (
+              <section className="detail-assessment">
+                <span className="detail-label">YOUR EVALUATION</span>
+                <h3>{assessments[selected.id].assessment.status}</h3>
+                <p>{assessments[selected.id].assessment.reason}</p>
+                {assessments[selected.id].assessment.question && (
+                  <p>{assessments[selected.id].assessment.question}</p>
+                )}
+                {assessments[selected.id].assessment.rows.length > 0 && (
+                  <details>
+                    <summary>See supporting evidence</summary>
+                    {assessments[selected.id].assessment.rows.map((row) => (
+                      <p key={row.key}>
+                        <strong>
+                          {row.label}: {row.level}
+                        </strong>{" "}
+                        {row.quote}
+                      </p>
+                    ))}
+                  </details>
+                )}
               </section>
-            ))
-          ) : (
-            <p>
-              Posting text could not be recovered. Fetch result:{" "}
-              {selected.fetchStatus.replaceAll("_", " ")}.
-            </p>
-          )}
-          {profile && assessments[selected.id]?.profile === profile && (
-            <section>
-              <h3>{assessments[selected.id].assessment.status}</h3>
-              <p>{assessments[selected.id].assessment.reason}</p>
-              <p>{assessments[selected.id].assessment.question}</p>
-              {assessments[selected.id].assessment.rows.map((row) => (
-                <p key={row.key}>
-                  <strong>
-                    {row.label}: {row.level}
-                  </strong>{" "}
-                  {row.quote}
+            )}
+            <section className="detail-description">
+              <div className="detail-section-heading">
+                <h3>About this job</h3>
+                <span>Imported source</span>
+              </div>
+              <p className="detail-notice">
+                Source text may be incomplete or outdated. Vacancy status has
+                not been verified.
+              </p>
+              {selected.descriptions.length ? (
+                selected.descriptions.map((desc, i) => (
+                  <section key={i} className="recovered-source">
+                    <div className="detail-source">
+                      <strong>Source:</strong> {desc.source}
+                      {desc.retrievedAt ? ` · ${desc.retrievedAt}` : ""}
+                      {desc.truncated ? " · Truncated" : ""}
+                    </div>
+                    <div className="description-text">
+                      {desc.text
+                        .split(/\n\s*\n/)
+                        .filter(Boolean)
+                        .map((paragraph, index) => (
+                          <p key={index}>{paragraph}</p>
+                        ))}
+                    </div>
+                  </section>
+                ))
+              ) : (
+                <p>
+                  Posting text could not be recovered. Fetch result:{" "}
+                  {selected.fetchStatus.replaceAll("_", " ")}.
                 </p>
-              ))}
+              )}
             </section>
-          )}
-          <button className="button primary" onClick={() => setSelected(null)}>
-            Back to jobs
-          </button>
+            <details className="detail-history">
+              <summary>
+                Tracker history <span>{selected.references.length}</span>
+              </summary>
+              <p>
+                These are past tracker records, not fresh evaluations or proof
+                that this vacancy remains open.
+              </p>
+              {selected.references.map((ref, i) => (
+                <section key={`${ref.sheet}-${ref.row}-${i}`}>
+                  <p>
+                    <strong>
+                      {ref.sheet}, row {ref.row}
+                    </strong>
+                    {ref.trackerStatus ? ` · Status: ${ref.trackerStatus}` : ""}
+                    {ref.recordedFit
+                      ? ` · Recorded fit: ${ref.recordedFit}`
+                      : ""}
+                  </p>
+                  {ref.notes && (
+                    <p className="history-note">Recorded note: {ref.notes}</p>
+                  )}
+                </section>
+              ))}
+            </details>
+          </div>
         </dialog>
       )}
     </Container>

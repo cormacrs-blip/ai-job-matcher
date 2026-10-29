@@ -46,7 +46,10 @@ export async function POST(request: Request) {
       typeof data.resume !== "string" ||
       !data.resume.trim() ||
       data.resume.length > 100000 ||
-      typeof data.id !== "string"
+      typeof data.id !== "string" ||
+      (data.model !== undefined &&
+        data.model !== "fast" &&
+        data.model !== "standard")
     )
       throw new Error();
     const job = getTrackerStore()
@@ -78,7 +81,12 @@ export async function POST(request: Request) {
     try {
       return Response.json(
         {
-          assessment: await evaluateWithCodex(data.resume, job, request.signal),
+          assessment: await evaluateWithCodex(
+            data.resume,
+            job,
+            request.signal,
+            data.model || "standard",
+          ),
         },
         { headers },
       );
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error:
-            "Codex could not complete this evaluation. Check ChatGPT sign-in, connectivity or plan limits, then retry. No fit verdict was guessed.",
+            "Codex could not complete this evaluation. Check sign-in, connectivity, plan limits or model availability. If the faster model is unavailable, remove your resume, choose the standard model and upload it again. No verdict was guessed.",
         },
         { status: 503, headers },
       );

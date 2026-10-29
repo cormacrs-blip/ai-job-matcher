@@ -48,6 +48,33 @@ it("returns uncached evaluations", async () => {
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect((await response.json()).assessment.status).toBe("Investigate");
 });
+it("passes the selected faster model to Codex and rejects unrecognised models", async () => {
+  mocks.evaluate.mockResolvedValue({
+    status: "Investigate",
+    reason: "Missing text",
+    rows: [],
+  });
+  expect(
+    (
+      await POST(
+        request({ id: "fictional", resume: "Fictional", model: "fast" }),
+      )
+    ).status,
+  ).toBe(200);
+  expect(mocks.evaluate).toHaveBeenCalledWith(
+    "Fictional",
+    expect.any(Object),
+    expect.any(AbortSignal),
+    "fast",
+  );
+  expect(
+    (
+      await POST(
+        request({ id: "fictional", resume: "Fictional", model: "other" }),
+      )
+    ).status,
+  ).toBe(400);
+});
 it("never fabricates a verdict on Codex failure or logs provider details", async () => {
   mocks.evaluate.mockRejectedValue(new Error("secret provider detail"));
   const response = await POST(
