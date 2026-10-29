@@ -4,6 +4,10 @@ Align is an early-stage job discovery and resume evaluation prototype built with
 
 This is a portfolio work in progress, designed to run as a private, single-user Codespace. It is not a hosted public product. The automatic evaluation flow is experimental: model outputs can fail source verification or return Investigate, and results need human review. Job listings are imported by the user; the application does not run a live job search.
 
+![Align opportunities dashboard showing fictional job listings](docs/images/opportunities.png)
+
+*The dashboard shown above uses fictional job listings. It illustrates the interface; the jobs shown have not been evaluated.*
+
 ## What works today
 
 - Import and merge tracker spreadsheets or supported JSON backups; browse, filter and bookmark saved jobs.
