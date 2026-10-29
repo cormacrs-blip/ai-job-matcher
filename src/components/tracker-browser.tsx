@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Bookmark, MapPin, Sparkles } from "lucide-react";
 import type { Preferences } from "@/lib/jobs";
 import type { Profile, Assessment } from "@/lib/matching/evaluator";
-import { RealJobEvaluator } from "./real-job-evaluator";
-import type { RealJobReview } from "@/lib/matching/real-job";
 import {
   matchesTrackerPreferences,
   recordedRatings,
@@ -43,11 +41,59 @@ export function TrackerBrowser({
   const [onlySaved, setOnlySaved] = useState(false);
   const [rating, setRating] = useState("All recorded ratings");
   const [assessments, setAssessments] = useState<
-    Record<
-      string,
-      { profile: Profile; assessment: Assessment | null; review: RealJobReview }
-    >
+    Record<string, { profile: Profile; assessment: Assessment }>
   >({});
+  const [progress, setProgress] = useState({
+    done: 0,
+    total: 0,
+    running: false,
+  });
+  const [evaluationError, setEvaluationError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!profile || !dataset) return;
+    const resume = profile;
+    const jobs = dataset.jobs;
+    async function run() {
+      setAssessments({});
+      setEvaluationError("");
+      setProgress({ done: 0, total: jobs.length, running: true });
+      for (let i = 0; i < jobs.length; i++) {
+        try {
+          const response = await fetch("/api/evaluate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: jobs[i].id, resume: resume.text }),
+            signal: controller.signal,
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Evaluation failed.");
+          if (controller.signal.aborted) return;
+          setAssessments((previous) => ({
+            ...previous,
+            [jobs[i].id]: { profile: resume, assessment: data.assessment },
+          }));
+          setProgress({
+            done: i + 1,
+            total: jobs.length,
+            running: i + 1 < jobs.length,
+          });
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          setEvaluationError(
+            error instanceof Error ? error.message : "Evaluation failed.",
+          );
+          setProgress({ done: i, total: jobs.length, running: false });
+          return;
+        }
+      }
+      if (!controller.signal.aborted)
+        setProgress({ done: jobs.length, total: jobs.length, running: false });
+    }
+    void run();
+    return () => controller.abort();
+  }, [profile, dataset, retry]);
   const dialog = useRef<HTMLDialogElement>(null);
   const readerSequence = useRef(0);
   useEffect(() => {
@@ -259,6 +305,32 @@ export function TrackerBrowser({
         </p>
       </div>
       <section className="panel tracker-upload">
+        {profile && (
+          <p role="status" aria-live="polite">
+            {progress.running ? "Evaluating with Codex" : "Evaluation progress"}
+            : {progress.done} of {progress.total} imported jobs. Resume and job
+            text are sent to OpenAI. Vacancy availability is unverified.
+          </p>
+        )}
+        {profile && (
+          <progress
+            aria-label="Job evaluation progress"
+            value={progress.done}
+            max={progress.total || 1}
+          />
+        )}
+        {evaluationError && (
+          <div role="alert">
+            <p>{evaluationError}</p>
+            <button
+              className="button secondary"
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              Retry evaluations
+            </button>
+          </div>
+        )}
+
         <label htmlFor="tracker-file">
           Choose your tracker spreadsheet or recovered Align file
         </label>
@@ -384,8 +456,8 @@ export function TrackerBrowser({
             <p className="small muted">
               The preferences on the left filter these jobs. Unknown work
               arrangements and unclear annual CAD salaries are included by
-              default when those filters are active. Fit labels are past tracker
-              ratings, not new resume evaluations.
+              default when those filters are active. New labels use the selected
+              resume; recorded labels are historical.
             </p>
           )}
           <p className="small muted">
@@ -451,20 +523,24 @@ export function TrackerBrowser({
                         profile &&
                         assessments[job.id]?.assessment
                           ? `New: ${assessments[job.id].assessment!.status}`
-                          : recordedRatings(job).length === 1
-                            ? `Recorded: ${recordedRatings(job)[0]}`
-                            : recordedRatings(job).length > 1
-                              ? "Conflicting recorded ratings"
-                              : "Not evaluated"}
+                          : profile
+                            ? "Queued for evaluation"
+                            : recordedRatings(job).length === 1
+                              ? `Recorded: ${recordedRatings(job)[0]}`
+                              : recordedRatings(job).length > 1
+                                ? "Conflicting recorded ratings"
+                                : "Not evaluated"}
                       </strong>
                       <p>
                         {assessments[job.id]?.profile === profile &&
                         profile &&
                         assessments[job.id]?.assessment
                           ? assessments[job.id].assessment!.reason
-                          : recordedRatings(job).length
-                            ? "Historical tracker rating; not a new resume evaluation."
-                            : "No historical fit rating recorded."}
+                          : profile
+                            ? "Awaiting Codex evaluation for this resume."
+                            : recordedRatings(job).length
+                              ? "Historical tracker rating; not a new resume evaluation."
+                              : "No historical fit rating recorded."}
                       </p>
                     </div>
                   </div>
@@ -589,28 +665,21 @@ export function TrackerBrowser({
               {selected.fetchStatus.replaceAll("_", " ")}.
             </p>
           )}
-          <RealJobEvaluator
-            key={selected.id}
-            job={selected}
-            profile={profile}
-            initialReview={
-              assessments[selected.id]?.profile === profile
-                ? assessments[selected.id].review
-                : undefined
-            }
-            initialAssessment={
-              assessments[selected.id]?.profile === profile
-                ? assessments[selected.id].assessment
-                : undefined
-            }
-            onAssessment={(assessment, review) => {
-              if (profile)
-                setAssessments((previous) => ({
-                  ...previous,
-                  [selected.id]: { profile, assessment, review },
-                }));
-            }}
-          />
+          {profile && assessments[selected.id]?.profile === profile && (
+            <section>
+              <h3>{assessments[selected.id].assessment.status}</h3>
+              <p>{assessments[selected.id].assessment.reason}</p>
+              <p>{assessments[selected.id].assessment.question}</p>
+              {assessments[selected.id].assessment.rows.map((row) => (
+                <p key={row.key}>
+                  <strong>
+                    {row.label}: {row.level}
+                  </strong>{" "}
+                  {row.quote}
+                </p>
+              ))}
+            </section>
+          )}
           <button className="button primary" onClick={() => setSelected(null)}>
             Back to jobs
           </button>

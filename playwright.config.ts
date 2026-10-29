@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import { tmpdir } from "node:os";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 // Test workers reload this config. Reuse only a marked temporary directory created by this run.
@@ -39,7 +39,9 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3000",
     launchOptions: {
-      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
+      executablePath:
+        process.env.CHROMIUM_PATH ||
+        (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
       args: ["--no-sandbox"],
     },
   },

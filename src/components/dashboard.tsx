@@ -76,8 +76,8 @@ export function Dashboard() {
         <p>
           <strong>Evidence, not percentages.</strong> Import your tracker to
           explore real jobs. Sample jobs demonstrate a limited rules-based
-          evaluation; review an imported job’s details to evaluate it against
-          your resume.
+          evaluation; selecting a resume automatically evaluates imported jobs
+          against your resume.
         </p>
       </div>
       <div className="dashboard-grid">
@@ -85,8 +85,8 @@ export function Dashboard() {
           <ResumeWorkbench onEvaluate={setProfile} target={jobSource} />
           {jobSource === "tracker" && (
             <p className="small muted">
-              Use your reviewed resume to evaluate a real job from its details.
-              Tracker ratings are historical.
+              Select a resume to evaluate all stored imported jobs
+              automatically. Tracker ratings are historical.
             </p>
           )}
           <section className="panel preferences">

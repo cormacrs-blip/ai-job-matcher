@@ -53,6 +53,7 @@ export function ResumeWorkbench({
     activeRequest.current?.abort();
     setBusy(false);
     setFile(candidate);
+    if (target === "tracker") void read(candidate);
     setProfile(null);
     onEvaluate(null);
   }
@@ -66,8 +67,8 @@ export function ResumeWorkbench({
     setError("");
     onEvaluate(null);
   }
-  async function read() {
-    if (!file) return;
+  async function read(selectedFile = file) {
+    if (!selectedFile) return;
     const current = ++requestNumber.current;
     activeRequest.current?.abort();
     const controller = new AbortController();
@@ -77,7 +78,7 @@ export function ResumeWorkbench({
     setProfile(null);
     onEvaluate(null);
     const form = new FormData();
-    form.set("resume", file);
+    form.set("resume", selectedFile);
     try {
       const response = await fetch("/api/resume", {
         method: "POST",
@@ -89,6 +90,7 @@ export function ResumeWorkbench({
       if (!response.ok)
         throw new Error(data.error || "Unable to read this document.");
       setProfile(data.profile);
+      if (target === "tracker") onEvaluate(data.profile);
     } catch (error) {
       if (current === requestNumber.current)
         setError(
@@ -126,6 +128,7 @@ export function ResumeWorkbench({
     setError("");
     onEvaluate(null);
     setProfile(parseProfile(pastedText));
+    if (target === "tracker") onEvaluate(parseProfile(pastedText));
   }
   const unsupported =
     profile &&
@@ -140,6 +143,12 @@ export function ResumeWorkbench({
       </div>
       <p className="small muted">
         Try a fictional resume first. Download, then select it below.
+      </p>
+      <p className="privacy-note">
+        Selecting a resume automatically evaluates all stored imported jobs,
+        including jobs outside the current filters. Resume and job text are sent
+        to OpenAI through signed-in Codex and use your plan limits. Results stay
+        in this browser session. No API billing is configured.
       </p>
       <div className="sample-downloads">
         {[
@@ -190,9 +199,7 @@ export function ResumeWorkbench({
       </div>
       <details className="paste-resume">
         <summary>Or paste resume text</summary>
-        <label htmlFor="resume-text">
-          Resume text (processed in this browser)
-        </label>
+        <label htmlFor="resume-text">Resume text</label>
         <textarea
           id="resume-text"
           value={pastedText}
@@ -208,18 +215,22 @@ export function ResumeWorkbench({
           placeholder="Paste the experience and project sections of a resume"
         />
         <button className="button secondary" onClick={readPastedText}>
-          Review pasted resume
+          {target === "tracker" ? "Use pasted resume" : "Review pasted resume"}
         </button>
       </details>
       {file && (
         <>
           <p className="privacy-note">
-            “Read resume” sends this document to this app’s cloud server for
-            text extraction. The application does not save the file or use an
-            external AI service. Use fictional files for this prototype.
+            The document is sent to this app for text extraction. For imported
+            jobs, extracted resume and job text are sent to OpenAI using your
+            signed-in Codex access.
           </p>
           <div className="resume-actions">
-            <button className="button primary" disabled={busy} onClick={read}>
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => void read()}
+            >
               {busy ? "Reading…" : "Read resume"}
             </button>
             <button className="reset-button" onClick={clear}>
@@ -233,7 +244,12 @@ export function ResumeWorkbench({
           {error}
         </p>
       )}
-      {profile && (
+      {profile && target === "tracker" && !file && (
+        <button className="reset-button" onClick={clear}>
+          Clear resume and results
+        </button>
+      )}
+      {profile && target === "sample" && (
         <div className="evidence-review">
           <h3>Review evidence before evaluating</h3>
           {!file && (
@@ -365,9 +381,7 @@ export function ResumeWorkbench({
             disabled={!!unsupported}
             onClick={() => onEvaluate(profile)}
           >
-            {target === "tracker"
-              ? "Use reviewed resume"
-              : "Evaluate sample jobs"}
+            Evaluate sample jobs
           </button>
         </div>
       )}

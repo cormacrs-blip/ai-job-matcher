@@ -162,8 +162,9 @@ export default function Home() {
           </span>
           <p>
             <strong>A thoughtful prototype, a transparent beginning.</strong>{" "}
-            All jobs are fictional demonstration data. No AI analysis or live
-            job search is performed.
+            Imported jobs are evaluated with signed-in Codex. Resume and job
+            text are sent to OpenAI. Sample jobs are fictional; no live job
+            search is performed.
           </p>
           <span className="small-tag">EARLY EXPLORATION</span>
         </section>
