@@ -781,6 +781,56 @@ test("shows ambiguous arrangements and historical notes without inventing a new 
   await expect(page.getByRole("dialog")).toContainText("Recorded fit: Fit");
 });
 
+test("separates job card facts while preserving the original details", async ({
+  page,
+}) => {
+  await page.goto("/dashboard");
+  const picker = page.getByLabel(
+    "Choose your tracker spreadsheet or recovered Align file",
+  );
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({
+    name: "jobs.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "align-tracker-v1",
+        generatedAt: "2026-10-27T00:00:00Z",
+        jobs: [
+          {
+            id: "facts",
+            title: "Project Manager",
+            company: "Example",
+            location:
+              "Canada remote-first; quarterly attendance; eligibility unresolved",
+            url: "",
+            fetchStatus: "fixture",
+            descriptions: [],
+            references: [
+              { sheet: "BC", row: 2, salary: "CAD70,000–90,000; full-time" },
+            ],
+          },
+        ],
+      }),
+    ),
+  });
+  const card = page.locator(".tracker-card");
+  await expect(card.locator(".card-facts")).toContainText("Canada");
+  await expect(card.locator(".card-facts")).toContainText("Remote");
+  await expect(card.locator(".card-facts")).toContainText("Full-time");
+  await expect(card.locator(".card-facts")).toContainText("CAD 70,000–90,000");
+  await expect(card.locator(".card-facts")).not.toContainText(
+    "eligibility unresolved",
+  );
+  await card.getByRole("button", { name: "View job and sources" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "eligibility unresolved",
+  );
+  await expect(page.getByRole("dialog")).toContainText(
+    "CAD70,000–90,000; full-time",
+  );
+});
+
 test("shows automatic evaluation progress, stops on errors, and retries without guessing", async ({
   page,
 }) => {

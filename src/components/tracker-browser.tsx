@@ -1,13 +1,20 @@
 "use client";
 import Link from "next/link";
-import { Bookmark, MapPin, Sparkles } from "lucide-react";
+import {
+  Bookmark,
+  BriefcaseBusiness,
+  CircleDollarSign,
+  House,
+  MapPin,
+  Sparkles,
+} from "lucide-react";
 import type { Preferences } from "@/lib/jobs";
 import type { Profile, Assessment } from "@/lib/matching/evaluator";
 import {
   matchesTrackerPreferences,
   recordedRatings,
-  trackerArrangements,
 } from "@/lib/tracker-filters";
+import { trackerCardDetails } from "@/lib/tracker-card";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -515,16 +522,7 @@ export function TrackerBrowser({
                   profile && assessments[job.id]?.profile === profile
                     ? assessments[job.id].assessment
                     : null;
-                const arrangements = trackerArrangements(job);
-                const arrangement =
-                  arrangements.length > 1
-                    ? "Work arrangement unclear"
-                    : arrangements[0] || "Work arrangement unknown";
-                const salaries = [
-                  ...new Set(
-                    job.references.map((ref) => ref.salary).filter(Boolean),
-                  ),
-                ];
+                const details = trackerCardDetails(job);
                 const history = recordedRatings(job);
                 return (
                   <article className="job-card tracker-card" key={job.id}>
@@ -556,18 +554,30 @@ export function TrackerBrowser({
                           />
                         </button>
                       </div>
-                      <div className="job-meta">
+                      <div className="job-meta card-facts">
                         <span>
-                          <MapPin size={16} />
-                          {job.location || "Location unknown"}
+                          <MapPin size={17} />
+                          <span>
+                            {details.location}
+                            {details.locationNeedsReview && (
+                              <span className="fact-caution">
+                                {" "}
+                                · Check details
+                              </span>
+                            )}
+                          </span>
                         </span>
-                        <span>{arrangement}</span>
                         <span>
-                          {salaries.length === 1
-                            ? salaries[0]
-                            : salaries.length > 1
-                              ? "Salary unclear"
-                              : "Salary unknown"}
+                          <House size={17} />
+                          <span>{details.arrangement}</span>
+                        </span>
+                        <span>
+                          <BriefcaseBusiness size={17} />
+                          <span>{details.employment}</span>
+                        </span>
+                        <span>
+                          <CircleDollarSign size={17} />
+                          <span>{details.pay}</span>
                         </span>
                       </div>
                       <div className="job-card-actions">
@@ -737,6 +747,10 @@ export function TrackerBrowser({
                       ? ` · Recorded fit: ${ref.recordedFit}`
                       : ""}
                   </p>
+                  {ref.location && <p>Original location: {ref.location}</p>}
+                  {ref.salary && (
+                    <p>Original pay and employment information: {ref.salary}</p>
+                  )}
                   {ref.notes && (
                     <p className="history-note">Recorded note: {ref.notes}</p>
                   )}

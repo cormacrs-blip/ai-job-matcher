@@ -2385,3 +2385,35 @@ input::placeholder {
     padding: 16px;
   }
 }
+
+/* Job facts are laid out as short, scannable details. */
+.tracker-card .card-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 12px;
+}
+.tracker-card .card-facts > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  line-height: 1.35;
+}
+.tracker-card .card-facts svg {
+  flex: 0 0 17px;
+  color: #32735d;
+}
+.tracker-card .card-facts > span > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .tracker-card .card-facts {
+    grid-template-columns: 1fr 1fr;
+    font-size: 13px;
+  }
+}
+.fact-caution {
+  color: #866a36;
+  font-size: 12px;
+  font-weight: 600;
+}
