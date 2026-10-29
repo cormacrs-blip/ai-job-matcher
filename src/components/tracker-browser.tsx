@@ -9,6 +9,7 @@ import {
   trackerArrangements,
 } from "@/lib/tracker-filters";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   readTrackerDataset,
   safePostingLink,
@@ -281,56 +282,13 @@ export function TrackerBrowser({
       if (current === readerSequence.current) setImporting(false);
     }
   }
-  return (
-    <Container className={embedded ? "tracker-embedded" : "dashboard shell"}>
-      {!embedded && (
-        <div className="dashboard-heading">
-          <div>
-            <span className="eyebrow">YOUR TRACKER</span>
-            <h1>Explore your saved jobs.</h1>
-            <p>Browse imported tracker entries and recovered posting text.</p>
-          </div>
-          <Link className="button secondary" href="/dashboard">
-            Back to dashboard
-          </Link>
-        </div>
-      )}
-      <div className="dashboard-disclaimer">
-        <p>
-          <strong>Saved in your Codespace.</strong> Imported jobs and bookmarks
-          are stored on this workspace’s disk and return when you reopen the
-          app. Keep the Codespace port private: anyone with access to this app
-          can see the saved jobs. The original spreadsheet and resume files are
-          not saved. Vacancy status and historical ratings are not reverified.
-        </p>
-      </div>
+  const trackerManagement = (
+    <details
+      className="tracker-management"
+      open={!dataset?.jobs.length || undefined}
+    >
+      <summary>Import or back up jobs</summary>
       <section className="panel tracker-upload">
-        {profile && (
-          <p role="status" aria-live="polite">
-            {progress.running ? "Evaluating with Codex" : "Evaluation progress"}
-            : {progress.done} of {progress.total} imported jobs. Resume and job
-            text are sent to OpenAI. Vacancy availability is unverified.
-          </p>
-        )}
-        {profile && (
-          <progress
-            aria-label="Job evaluation progress"
-            value={progress.done}
-            max={progress.total || 1}
-          />
-        )}
-        {evaluationError && (
-          <div role="alert">
-            <p>{evaluationError}</p>
-            <button
-              className="button secondary"
-              onClick={() => setRetry((value) => value + 1)}
-            >
-              Retry evaluations
-            </button>
-          </div>
-        )}
-
         <label htmlFor="tracker-file">
           Choose your tracker spreadsheet or recovered Align file
         </label>
@@ -365,6 +323,147 @@ export function TrackerBrowser({
         {importing && <p role="status">Importing and saving jobs…</p>}
         {importMessage && <p aria-live="polite">{importMessage}</p>}
       </section>
+    </details>
+  );
+  const trackerFilters = (
+    <div className="tracker-filter-panel">
+      <div className="tracker-controls">
+        <label>
+          Search company, title or location
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+            placeholder="e.g. Product Manager"
+          />
+        </label>
+        <label>
+          Recorded fit{" "}
+          <select
+            aria-label="Recorded fit"
+            value={rating}
+            onChange={(event) => {
+              setRating(event.target.value);
+              setPage(0);
+            }}
+          >
+            {[
+              "All recorded ratings",
+              "Fit",
+              "Consider",
+              "Investigate",
+              "Weak Fit",
+            ].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <label className="tracker-check">
+          <input
+            type="checkbox"
+            checked={onlyText}
+            onChange={(e) => {
+              setOnlyText(e.target.checked);
+              setPage(0);
+            }}
+          />{" "}
+          Only jobs with recovered text
+        </label>
+      </div>
+      {embedded && (
+        <label className="tracker-check">
+          <input
+            type="checkbox"
+            checked={includeUnknown}
+            onChange={(event) => setIncludeUnknown(event.target.checked)}
+          />{" "}
+          Include unknown work arrangement or salary
+        </label>
+      )}
+    </div>
+  );
+  return (
+    <Container className={embedded ? "tracker-embedded" : "dashboard shell"}>
+      {!embedded && (
+        <div className="dashboard-heading">
+          <div>
+            <span className="eyebrow">YOUR TRACKER</span>
+            <h1>Explore your saved jobs.</h1>
+            <p>Browse imported tracker entries and recovered posting text.</p>
+          </div>
+          <Link className="button secondary" href="/dashboard">
+            Back to dashboard
+          </Link>
+        </div>
+      )}
+      {!embedded && (
+        <div className="dashboard-disclaimer">
+          <p>
+            <strong>Saved in your Codespace.</strong> Imported jobs and
+            bookmarks are stored on this workspace’s disk and return when you
+            reopen the app. Keep the Codespace port private: anyone with access
+            to this app can see the saved jobs. The original spreadsheet and
+            resume files are not saved. Vacancy status and historical ratings
+            are not reverified.
+          </p>
+        </div>
+      )}
+      {profile &&
+        (embedded &&
+        typeof document !== "undefined" &&
+        document.getElementById("evaluation-progress") ? (
+          createPortal(
+            <div className="evaluation-progress">
+              <p role="status" aria-live="polite">
+                {progress.running
+                  ? "Evaluating with Codex"
+                  : "Evaluation progress"}
+                : {progress.done} of {progress.total} jobs
+              </p>
+              <progress
+                aria-label="Job evaluation progress"
+                value={progress.done}
+                max={progress.total || 1}
+              />
+              {evaluationError && (
+                <div role="alert">
+                  <p>{evaluationError}</p>
+                  <button
+                    className="reset-button"
+                    onClick={() => setRetry((value) => value + 1)}
+                  >
+                    Retry evaluations
+                  </button>
+                </div>
+              )}
+            </div>,
+            document.getElementById("evaluation-progress")!,
+          )
+        ) : !embedded ? (
+          <div className="evaluation-progress">
+            <p role="status">
+              {progress.done} of {progress.total} jobs evaluated
+            </p>
+            <progress
+              aria-label="Job evaluation progress"
+              value={progress.done}
+              max={progress.total || 1}
+            />
+          </div>
+        ) : null)}
+      {embedded &&
+      typeof document !== "undefined" &&
+      document.getElementById("tracker-management")
+        ? createPortal(
+            trackerManagement,
+            document.getElementById("tracker-management")!,
+          )
+        : !embedded
+          ? trackerManagement
+          : null}
       {dataset && dataset.jobs.length > 0 && (
         <section className="tracker-results">
           <div className="results-toolbar">
@@ -390,81 +489,21 @@ export function TrackerBrowser({
             </div>
             <span className="sort-label">Tracker order</span>
           </div>
-          <div className="tracker-controls">
-            <label>
-              Search company, title or location
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(0);
-                }}
-                placeholder="e.g. Product Manager"
-              />
-            </label>
-            <label>
-              Recorded fit{" "}
-              <select
-                aria-label="Recorded fit"
-                value={rating}
-                onChange={(event) => {
-                  setRating(event.target.value);
-                  setPage(0);
-                }}
-              >
-                {[
-                  "All recorded ratings",
-                  "Fit",
-                  "Consider",
-                  "Investigate",
-                  "Weak Fit",
-                ].map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            </label>
-            <label className="tracker-check">
-              <input
-                type="checkbox"
-                checked={onlyText}
-                onChange={(e) => {
-                  setOnlyText(e.target.checked);
-                  setPage(0);
-                }}
-              />{" "}
-              Only jobs with recovered text
-            </label>
-          </div>
-          {embedded && (
-            <label className="tracker-check">
-              <input
-                type="checkbox"
-                checked={includeUnknown}
-                onChange={(event) => setIncludeUnknown(event.target.checked)}
-              />{" "}
-              Include unknown work arrangement or salary
-            </label>
-          )}
+          {embedded &&
+          typeof document !== "undefined" &&
+          document.getElementById("tracker-filters")
+            ? createPortal(
+                trackerFilters,
+                document.getElementById("tracker-filters")!,
+              )
+            : !embedded
+              ? trackerFilters
+              : null}
           <p className="tracker-count" role="status">
             {results.length} entries ·{" "}
             {dataset.jobs.filter((j) => j.descriptions.length > 0).length} with
             recovered or cached text · imported{" "}
             {new Date(dataset.generatedAt).toLocaleDateString()}
-          </p>
-          {embedded && (
-            <p className="small muted">
-              The preferences on the left filter these jobs. Unknown work
-              arrangements and unclear annual CAD salaries are included by
-              default when those filters are active. New labels use the selected
-              resume; recorded labels are historical.
-            </p>
-          )}
-          <p className="small muted">
-            Entries are grouped only by identical posting URLs. Links without a
-            URL remain separate; different URLs may still represent the same
-            vacancy. Tracker statuses are historical and may differ across
-            copies.
           </p>
           <div className="job-list">
             {results

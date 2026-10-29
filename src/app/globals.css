@@ -1858,3 +1858,123 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* Opportunity workspace */
+.dashboard.shell {
+  padding-top: 24px;
+}
+.compact-heading h1 {
+  margin: 0 0 22px;
+  font-family: inherit;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.dashboard-grid {
+  grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.sidebar {
+  gap: 14px;
+}
+.sidebar .panel {
+  padding: 18px;
+}
+.resume-workbench .privacy-note {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.resume-workbench .upload-zone {
+  padding: 16px;
+  gap: 8px;
+}
+.evaluation-progress {
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f0f5ed;
+  font-size: 14px;
+}
+.evaluation-progress p {
+  margin: 0 0 8px;
+}
+.evaluation-progress progress {
+  width: 100%;
+  accent-color: var(--green);
+}
+.evaluation-progress:empty,
+#evaluation-progress:empty,
+#tracker-filters:empty {
+  display: none;
+}
+.source-options,
+.tracker-management {
+  margin: 0 0 12px;
+  color: #526b5c;
+  font-size: 14px;
+}
+.source-options summary,
+.tracker-management summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 6px 0;
+  font-weight: 600;
+}
+.source-options .source-selector {
+  padding: 10px 0;
+}
+.tracker-management .tracker-upload {
+  margin: 8px 0 14px;
+}
+.tracker-filter-panel {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 18px;
+}
+.tracker-filter-panel .tracker-controls {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+.tracker-filter-panel .tracker-controls label {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.tracker-filter-panel .tracker-controls .tracker-check,
+.tracker-filter-panel > .tracker-check {
+  display: flex;
+}
+.tracker-filter-panel select,
+.tracker-filter-panel input[type="search"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: white;
+}
+.tracker-filter-panel > .tracker-check {
+  margin-top: 16px;
+}
+.tracker-results .results-toolbar {
+  margin-top: 0;
+}
+.tracker-count {
+  color: #718073;
+  font-size: 14px;
+  margin: 12px 0 16px;
+}
+.job-list {
+  gap: 12px;
+}
+.tracker-card {
+  border-radius: 12px;
+}
+@media (max-width: 1000px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}

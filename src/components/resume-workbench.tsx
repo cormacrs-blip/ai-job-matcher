@@ -141,33 +141,11 @@ export function ResumeWorkbench({
         <h2>Your resume</h2>
         <FileText size={20} />
       </div>
-      <p className="small muted">
-        Try a fictional resume first. Download, then select it below.
-      </p>
       <p className="privacy-note">
-        Selecting a resume automatically evaluates all stored imported jobs,
-        including jobs outside the current filters. Resume and job text are sent
-        to OpenAI through signed-in Codex and use your plan limits. Results stay
-        in this browser session. No API billing is configured.
+        Upload to evaluate all saved jobs automatically. Resume and job text are
+        sent to OpenAI using your Codex plan limits. Results last for this
+        session.
       </p>
-      <div className="sample-downloads">
-        {[
-          "ordinary-business-analyst",
-          "ordinary-data-engineer",
-          "business-analyst",
-          "incomplete-profile",
-        ].map((name) => (
-          <div key={name}>
-            <strong>{name.replaceAll("-", " ")}</strong>
-            <a href={`/sample-resumes/${name}.pdf`} download>
-              PDF
-            </a>
-            <a href={`/sample-resumes/${name}.docx`} download>
-              DOCX
-            </a>
-          </div>
-        ))}
-      </div>
       <div
         className="upload-zone"
         onDragOver={(event) => event.preventDefault()}
@@ -220,19 +198,19 @@ export function ResumeWorkbench({
       </details>
       {file && (
         <>
-          <p className="privacy-note">
-            The document is sent to this app for text extraction. For imported
-            jobs, extracted resume and job text are sent to OpenAI using your
-            signed-in Codex access.
-          </p>
           <div className="resume-actions">
-            <button
-              className="button primary"
-              disabled={busy}
-              onClick={() => void read()}
-            >
-              {busy ? "Reading…" : "Read resume"}
-            </button>
+            {target === "sample" && (
+              <button
+                className="button primary"
+                disabled={busy}
+                onClick={() => void read()}
+              >
+                {busy ? "Reading…" : "Read resume"}
+              </button>
+            )}
+            {target === "tracker" && busy && (
+              <span role="status">Reading resume…</span>
+            )}
             <button className="reset-button" onClick={clear}>
               Remove selected resume
             </button>

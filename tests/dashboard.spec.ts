@@ -31,6 +31,7 @@ test("responsive navigation, multi-select filters, saved jobs and role details",
     ),
   ).toBe(true);
   await page.getByRole("link", { name: "Find your next opportunity" }).click();
+  await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await expect(page.locator(".job-card")).toHaveCount(5);
   await page.getByLabel("Role or job title").fill("digital business");
@@ -67,6 +68,7 @@ for (const extension of ["pdf", "docx"])
     page,
   }) => {
     await page.goto("/dashboard");
+    await page.locator(".source-options summary").click();
     await page.getByRole("button", { name: "Sample opportunities" }).click();
     const input = page.getByLabel("Choose resume PDF or DOCX");
     await expect(page.locator(".status-pending")).toHaveCount(5);
@@ -125,6 +127,7 @@ test("rejects invalid content and ordinary resume evidence stays unknown", async
   });
   expect(response.status()).toBe(400);
   await page.goto("/dashboard");
+  await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page.getByLabel("Choose resume PDF or DOCX").setInputFiles({
     name: "bad.exe",
@@ -161,6 +164,7 @@ test("removing a resume cancels an in-flight read and prevents stale evidence", 
     });
   });
   await page.goto("/dashboard");
+  await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page
     .getByLabel("Choose resume PDF or DOCX")
@@ -186,6 +190,7 @@ for (const extension of ["pdf", "docx"])
     page,
   }) => {
     await page.goto("/dashboard");
+    await page.locator(".source-options summary").click();
     await page.getByRole("button", { name: "Sample opportunities" }).click();
     await page
       .getByLabel("Choose resume PDF or DOCX")
@@ -251,6 +256,7 @@ test("pasted resume stays local and quoted limitations remain visible", async ({
     if (request.url().endsWith("/api/resume")) uploads++;
   });
   await page.goto("/dashboard");
+  await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await page.getByText("Or paste resume text", { exact: true }).click();
   await page
@@ -329,9 +335,10 @@ test("imports and saves tracker data while keeping historical statuses and sourc
     if (r.method() === "POST") trackerPosts++;
   });
   await page.goto("/dashboard");
-  await expect(
-    page.getByRole("button", { name: "Your tracker jobs" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".source-selector button").first()).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(
     page.getByLabel("Choose your tracker spreadsheet or recovered Align file"),
   ).toBeEnabled();
@@ -343,6 +350,7 @@ test("imports and saves tracker data while keeping historical statuses and sourc
       buffer: Buffer.from(JSON.stringify(fake)),
     });
   await expect(page.getByRole("status")).toContainText("2 entries");
+  await page.locator(".source-options summary").click();
   await page.getByRole("button", { name: "Sample opportunities" }).click();
   await expect(page.locator(".job-card:visible")).toHaveCount(5);
   await page.getByRole("button", { name: "Your tracker jobs" }).click();
@@ -638,6 +646,7 @@ test("retains jobs and bookmarks after reload, merges later imports, and provide
   await expect(
     page.getByRole("button", { name: "Unsave Analyst", exact: true }),
   ).toBeVisible();
+  await page.locator(".tracker-management summary").click();
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download jobs backup" }).click();
   expect((await downloaded).suggestedFilename()).toBe("align-saved-jobs.json");
@@ -689,7 +698,9 @@ test("selecting a resume automatically investigates insufficient imported text w
   await expect(page.locator(".tracker-card")).toContainText(
     "Insufficient job-description text",
   );
-  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "1");
+  await expect(
+    page.locator(".sidebar").getByRole("progressbar"),
+  ).toHaveAttribute("value", "1");
   await page.getByRole("button", { name: "View job and sources" }).click();
   await expect(page.getByRole("dialog")).toContainText("Investigate");
   await expect(page.getByRole("dialog").getByRole("checkbox")).toHaveCount(0);
@@ -775,7 +786,9 @@ test("shows automatic evaluation progress, stops on errors, and retries without 
   fail = false;
   await page.getByRole("button", { name: "Retry evaluations" }).click();
   await expect(page.locator(".tracker-card")).toContainText("New: Consider");
-  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "1");
+  await expect(
+    page.locator(".sidebar").getByRole("progressbar"),
+  ).toHaveAttribute("value", "1");
   expect(requests).toBe(2);
   await page.getByRole("button", { name: "Clear resume and results" }).click();
   await expect(page.locator(".tracker-card")).not.toContainText(

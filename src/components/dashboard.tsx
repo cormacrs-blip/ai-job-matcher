@@ -61,34 +61,13 @@ export function Dashboard() {
     selected && profile ? evaluateRole(selected, profile) : null;
   return (
     <main className="dashboard shell">
-      <div className="dashboard-heading">
-        <div>
-          <span className="eyebrow">YOUR NEXT CHAPTER</span>
-          <h1>A little closer to what’s next.</h1>
-          <p>Your priorities. A few possibilities. A clearer way forward.</p>
-        </div>
-        <span className="dashboard-badge">
-          <Sparkles size={15} /> Prototype
-        </span>
-      </div>
-      <div className="dashboard-disclaimer">
-        <Sparkles size={17} />
-        <p>
-          <strong>Evidence, not percentages.</strong> Import your tracker to
-          explore real jobs. Sample jobs demonstrate a limited rules-based
-          evaluation; selecting a resume automatically evaluates imported jobs
-          against your resume.
-        </p>
+      <div className="dashboard-heading compact-heading">
+        <h1>Find opportunities</h1>
       </div>
       <div className="dashboard-grid">
         <aside className="sidebar">
           <ResumeWorkbench onEvaluate={setProfile} target={jobSource} />
-          {jobSource === "tracker" && (
-            <p className="small muted">
-              Select a resume to evaluate all stored imported jobs
-              automatically. Tracker ratings are historical.
-            </p>
-          )}
+          <div id="evaluation-progress" />
           <section className="panel preferences">
             <div className="panel-title">
               <h2>Your preferences</h2>
@@ -176,24 +155,29 @@ export function Dashboard() {
               Reset preferences
             </button>
           </section>
+          <div id="tracker-filters" />
+          <div id="tracker-management" />
+          <details className="source-options">
+            <summary>Job sources</summary>
+            <div className="source-selector" aria-label="Choose job source">
+              <button
+                type="button"
+                aria-pressed={jobSource === "tracker"}
+                onClick={() => setJobSource("tracker")}
+              >
+                Your tracker jobs
+              </button>
+              <button
+                type="button"
+                aria-pressed={jobSource === "sample"}
+                onClick={() => setJobSource("sample")}
+              >
+                Sample opportunities
+              </button>
+            </div>
+          </details>
         </aside>
         <section className="results">
-          <div className="source-selector" aria-label="Choose job source">
-            <button
-              type="button"
-              aria-pressed={jobSource === "tracker"}
-              onClick={() => setJobSource("tracker")}
-            >
-              Your tracker jobs
-            </button>
-            <button
-              type="button"
-              aria-pressed={jobSource === "sample"}
-              onClick={() => setJobSource("sample")}
-            >
-              Sample opportunities
-            </button>
-          </div>
           <div hidden={jobSource !== "tracker"}>
             <TrackerBrowser
               embedded

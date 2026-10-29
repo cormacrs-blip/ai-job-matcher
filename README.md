@@ -4,9 +4,9 @@ Align is a private Codespace job tracker with resume-based evaluation.
 
 ## Imported-job workflow
 
-1. Import a tracker spreadsheet or recovered Align JSON file. Jobs and bookmarks persist in the private Codespace database.
+1. Open **Import or back up jobs** in the sidebar and import a tracker spreadsheet or recovered Align JSON file. Jobs and bookmarks persist in the private Codespace database.
 2. Select a PDF/DOCX resume. Align automatically extracts it and evaluates all stored imported jobs using the server's installed, ChatGPT-signed-in Codex CLI. Pasted text starts with **Use pasted resume**.
-3. Follow queue progress and open job details for reasons and source evidence. Labels are **Fit**, **Consider**, **Investigate**, and **Weak Fit**. Per-job checklists are removed. Missing, short or truncated descriptions remain Investigate without model inference.
+3. Follow queue progress below the resume upload and open job details for reasons and source evidence. Labels are **Fit**, **Consider**, **Investigate**, and **Weak Fit**. Per-job checklists are removed. Missing, short or truncated descriptions remain Investigate without model inference.
 
 **Data sharing:** extracted resume and job text are sent to OpenAI, using your Codex plan limits. No API billing is configured. The app does not store resumes or evaluation results; results clear on refresh. Imported jobs/bookmarks are stored in ignored `.align-data/`. Do not add personal imports, resumes, credentials or database files to Git. No personal data is included in the fictional test fixtures.
 
